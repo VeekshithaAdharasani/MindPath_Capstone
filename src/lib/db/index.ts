@@ -89,6 +89,7 @@ async function runMigrations(): Promise<void> {
         CREATE TABLE IF NOT EXISTS quiz_attempts (
           id TEXT PRIMARY KEY,
           user_id TEXT NOT NULL,
+          quiz_id TEXT DEFAULT '',
           quiz_title TEXT NOT NULL,
           category TEXT NOT NULL,
           score INTEGER NOT NULL,
@@ -97,6 +98,12 @@ async function runMigrations(): Promise<void> {
           completed_at INTEGER NOT NULL
         );
       `);
+
+      try {
+        await client.execute(`ALTER TABLE quiz_attempts ADD COLUMN quiz_id TEXT DEFAULT '';`);
+      } catch {
+        // Column may already exist
+      }
 
       await client.execute(`
         CREATE TABLE IF NOT EXISTS career_paths (
@@ -228,6 +235,12 @@ async function runMigrations(): Promise<void> {
       `);
       await client.execute(`
         CREATE INDEX IF NOT EXISTS idx_generated_quizzes_user ON generated_quizzes(user_id, created_at DESC);
+      `);
+      await client.execute(`
+        CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON quiz_attempts(user_id, completed_at DESC);
+      `);
+      await client.execute(`
+        CREATE INDEX IF NOT EXISTS idx_quiz_attempts_quiz ON quiz_attempts(quiz_id);
       `);
 
       console.log('✅ Turso Database schema verified (zero mock data seeded).');

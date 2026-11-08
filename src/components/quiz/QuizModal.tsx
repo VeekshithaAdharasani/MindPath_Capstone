@@ -25,9 +25,11 @@ export const QuizModal: React.FC<QuizModalProps> = ({
   const [isFinished, setIsFinished] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(600);
   const [answers, setAnswers] = useState<{ selected: number; correct: boolean }[]>([]);
+  const finalizedRef = React.useRef(false);
 
   useEffect(() => {
     if (isOpen && quiz) {
+      finalizedRef.current = false;
       setCurrentIndex(0);
       setSelectedOption(null);
       setShowAnswer(false);
@@ -38,19 +40,57 @@ export const QuizModal: React.FC<QuizModalProps> = ({
     }
   }, [isOpen, quiz]);
 
+  const finalizeQuiz = React.useCallback(
+    async (currentScore: number) => {
+      if (finalizedRef.current || !quiz) return;
+      finalizedRef.current = true;
+      setIsFinished(true);
+
+      const total = quiz.questions.length;
+      const pct = total > 0 ? (currentScore / total) * 100 : 0;
+      if (pct >= 70) {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      }
+
+      // Persist to Turso Cloud DB with user attribution and specific quiz ID
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (userId) headers['x-user-id'] = userId;
+
+        await fetch('/api/quizzes/attempt', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            userId,
+            quizId: quiz.id,
+            quizTitle: quiz.title,
+            category: quiz.category,
+            score: Math.round(pct),
+            totalQuestions: total,
+            weakTopics: pct < 75 ? [quiz.title] : [],
+          }),
+        });
+        onQuizCompleted(currentScore, total, pct < 75 ? [quiz.title] : []);
+      } catch (e) {
+        console.error('Quiz attempt save error:', e);
+      }
+    },
+    [quiz, userId, onQuizCompleted]
+  );
+
   useEffect(() => {
     if (!isOpen || isFinished || secondsRemaining <= 0) return;
     const interval = setInterval(() => {
       setSecondsRemaining((s) => {
         if (s <= 1) {
-          setIsFinished(true);
+          finalizeQuiz(score);
           return 0;
         }
         return s - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [isOpen, isFinished, secondsRemaining]);
+  }, [isOpen, isFinished, secondsRemaining, finalizeQuiz, score]);
 
   if (!isOpen || !quiz) return null;
 
@@ -70,41 +110,13 @@ export const QuizModal: React.FC<QuizModalProps> = ({
     setAnswers([...answers, { selected: selectedOption, correct: isCorrect }]);
   };
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (currentIndex + 1 < quiz.questions.length) {
       setCurrentIndex(currentIndex + 1);
       setSelectedOption(null);
       setShowAnswer(false);
     } else {
-      setIsFinished(true);
-      const finalScore = score;
-      const total = quiz.questions.length;
-      const pct = (finalScore / total) * 100;
-      if (pct >= 70) {
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      }
-
-      // Persist to Turso Cloud DB with user attribution
-      try {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (userId) headers['x-user-id'] = userId;
-
-        await fetch('/api/quizzes/attempt', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            userId,
-            quizTitle: quiz.title,
-            category: quiz.category,
-            score: Math.round(pct),
-            totalQuestions: total,
-            weakTopics: pct < 75 ? [quiz.title] : [],
-          }),
-        });
-        onQuizCompleted(finalScore, total, pct < 75 ? [quiz.title] : []);
-      } catch (e) {
-        console.error('Quiz attempt save error:', e);
-      }
+      finalizeQuiz(score);
     }
   };
 
@@ -300,11 +312,13 @@ export const QuizModal: React.FC<QuizModalProps> = ({
             <div className="w-full flex items-center justify-center gap-3">
               <button
                 onClick={() => {
+                  finalizedRef.current = false;
                   setCurrentIndex(0);
                   setSelectedOption(null);
                   setShowAnswer(false);
                   setScore(0);
                   setIsFinished(false);
+                  setAnswers([]);
                   setSecondsRemaining(quiz.durationMinutes * 60);
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#14172f] border border-white/15 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"

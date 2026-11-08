@@ -262,6 +262,7 @@ var reminders = sqliteTable("reminders", {
 var quizAttempts = sqliteTable("quiz_attempts", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
+  quizId: text("quiz_id").default(""),
   quizTitle: text("quiz_title").notNull(),
   category: text("category").notNull(),
   score: integer("score").notNull(),
@@ -397,6 +398,7 @@ async function runMigrations() {
         CREATE TABLE IF NOT EXISTS quiz_attempts (
           id TEXT PRIMARY KEY,
           user_id TEXT NOT NULL,
+          quiz_id TEXT DEFAULT '',
           quiz_title TEXT NOT NULL,
           category TEXT NOT NULL,
           score INTEGER NOT NULL,
@@ -405,6 +407,10 @@ async function runMigrations() {
           completed_at INTEGER NOT NULL
         );
       `);
+      try {
+        await client.execute(`ALTER TABLE quiz_attempts ADD COLUMN quiz_id TEXT DEFAULT '';`);
+      } catch {
+      }
       await client.execute(`
         CREATE TABLE IF NOT EXISTS career_paths (
           id TEXT PRIMARY KEY,
@@ -525,6 +531,12 @@ async function runMigrations() {
       `);
       await client.execute(`
         CREATE INDEX IF NOT EXISTS idx_generated_quizzes_user ON generated_quizzes(user_id, created_at DESC);
+      `);
+      await client.execute(`
+        CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON quiz_attempts(user_id, completed_at DESC);
+      `);
+      await client.execute(`
+        CREATE INDEX IF NOT EXISTS idx_quiz_attempts_quiz ON quiz_attempts(quiz_id);
       `);
       console.log("\u2705 Turso Database schema verified (zero mock data seeded).");
       isDbInitialized = true;
@@ -1631,33 +1643,63 @@ async function generateCareerPath(userGoal) {
   const content = completion.choices[0]?.message?.content || "{}";
   return JSON.parse(content);
 }
-async function generateQuiz(topic, level, numQuestions = 10) {
+async function generateQuiz(topic, level, numQuestions = 10, existingTitles = []) {
   if (typeof window !== "undefined") {
     const res = await fetch("/api/quiz/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic, level, numQuestions })
+      body: JSON.stringify({ topic, level, numQuestions, existingTitles })
     });
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     return data.quiz;
   }
+  const existingTitlesClause = existingTitles.length > 0 ? `
+IMPORTANT: The user has ALREADY completed quizzes with these titles: [${existingTitles.slice(0, 10).map((t) => `"${t}"`).join(", ")}]. DO NOT repeat or closely match any of these titles or subtopics! Focus on a completely different subtopic or angle within "${topic}".` : "";
+  const systemPrompt = `You are an elite academic curriculum designer and examination specialist.
+Create ${numQuestions} rigorous, high-quality multiple-choice questions for "${topic}" at the "${level}" level.
+
+TITLE SPECIFICITY REQUIREMENT (STRICT):
+1. NEVER generate generic titles like "${topic} Quiz", "${level} ${topic} Quiz", "${topic} Assessment", or "${topic} Diagnostic".
+2. Pick a focused, distinct subtopic, technical competency, or practical architectural/operational domain within "${topic}".
+   Examples for Cybersecurity: "Network Defense & Packet Analysis Diagnostic", "Threat Modeling & Zero Trust Architecture Assessment", "Memory Safety & Exploit Mitigation Evaluation", "Cryptographic Protocols & Key Exchange Assessment".
+   Examples for AI/ML: "Transformer Architecture & Attention Mechanisms Diagnostic", "Loss Functions & Gradient Optimization Assessment", "Computer Vision Feature Extraction & CNN Evaluation".
+   Examples for Full-Stack: "State Management & Concurrent Rendering Assessment", "Distributed Systems & Eventual Consistency Diagnostic", "Relational Query Optimization & Indexing Assessment".
+3. The quiz title MUST be detailed, unique, and clearly reflect the chosen subtopic (e.g. "[Specific Subtopic]: [Domain] Assessment").${existingTitlesClause}
+4. Each question must feature 4 realistic, distinct options (options array of 4 strings), the 0-based integer 'correctIndex', and an in-depth 'explanation'.
+
+Output valid JSON only with keys:
+{
+  "title": string,
+  "topic": "${topic}",
+  "subtopic": string,
+  "questions": [
+    {
+      "question": string,
+      "options": [string, string, string, string],
+      "correctIndex": number,
+      "explanation": string
+    }
+  ]
+}`;
   const completion = await enzonicAI.chat.completions.create({
     model: ENZONIC_MODEL2,
     messages: [
-      {
-        role: "system",
-        content: `Generate ${numQuestions} multiple choice quiz questions for "${topic}" at ${level} level.
-        Output as JSON only with keys: title, topic, questions (array of {question, options: string[4], correctIndex: number, explanation}).`
-      },
-      { role: "user", content: `Generate quiz questions for: ${topic}` }
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Generate a challenging, subtopic-specific ${level}-level diagnostic quiz for: ${topic}` }
     ],
     max_tokens: 4096,
-    temperature: 0.3,
+    temperature: 0.7,
     response_format: { type: "json_object" }
   });
   const content = completion.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  const parsed = JSON.parse(content);
+  const lowerTitle = String(parsed.title || "").toLowerCase().trim();
+  if (!parsed.title || lowerTitle === `${topic.toLowerCase()} quiz` || lowerTitle === `${level.toLowerCase()} ${topic.toLowerCase()} quiz` || lowerTitle === `${topic.toLowerCase()} assessment`) {
+    const subtopic = parsed.subtopic || `${level.charAt(0).toUpperCase() + level.slice(1)} Competency`;
+    parsed.title = `${topic}: ${subtopic} Diagnostic`;
+  }
+  return parsed;
 }
 
 // src/lib/storage/r2.ts
@@ -2358,18 +2400,19 @@ app.post("/api/quizzes/clear", async (req, res) => {
 });
 app.post("/api/quizzes/attempt", async (req, res) => {
   const userId = await resolveUserId(req);
-  const { quizTitle, category, score, totalQuestions, weakTopics } = req.body;
+  const { quizId, quiz_id, quizTitle, category, score, totalQuestions, weakTopics } = req.body;
   if (!quizTitle || typeof score !== "number" || typeof totalQuestions !== "number" || totalQuestions <= 0 || score < 0) {
     return res.status(400).json({ error: "Valid quiz Title, score, and totalQuestions are required" });
   }
   const id = `attempt-${Date.now()}`;
+  const effectiveQuizId = String(quizId || quiz_id || "").slice(0, 100);
   const weakStr = Array.isArray(weakTopics) ? weakTopics.join(",") : typeof weakTopics === "string" ? weakTopics : "";
   try {
     await client.execute({
-      sql: "INSERT INTO quiz_attempts (id, user_id, quiz_title, category, score, total_questions, weak_topics, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [id, userId, String(quizTitle).slice(0, 150), String(category || "General").slice(0, 50), Math.round(score), Math.round(totalQuestions), weakStr.slice(0, 300), Date.now()]
+      sql: "INSERT INTO quiz_attempts (id, user_id, quiz_id, quiz_title, category, score, total_questions, weak_topics, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [id, userId, effectiveQuizId, String(quizTitle).slice(0, 150), String(category || "General").slice(0, 50), Math.round(score), Math.round(totalQuestions), weakStr.slice(0, 300), Date.now()]
     });
-    return res.json({ ok: true, id });
+    return res.json({ ok: true, id, quizId: effectiveQuizId });
   } catch (err) {
     console.error("Save quiz attempt error:", err);
     return res.status(500).json({ error: "Failed to save quiz attempt" });
@@ -3459,13 +3502,26 @@ Return ONLY valid JSON matching:
 app.get("/api/career/explore", handleCareerExplore);
 app.post("/api/career/explore", handleCareerExplore);
 app.post("/api/quiz/generate", async (req, res) => {
-  const { topic, level, numQuestions } = req.body || {};
+  const { topic, level, numQuestions, existingTitles } = req.body || {};
   if (!topic) return res.status(400).json({ error: "Topic required" });
   const userId = await resolveUserId(req);
   try {
-    const quiz = await generateQuiz(topic, level || "intermediate", numQuestions || 5);
+    let knownTitles = Array.isArray(existingTitles) ? existingTitles.map(String) : [];
+    if (knownTitles.length === 0) {
+      try {
+        const pastQuizzes = await client.execute({
+          sql: "SELECT title FROM generated_quizzes WHERE user_id = ? ORDER BY created_at DESC LIMIT 15",
+          args: [userId]
+        });
+        knownTitles = pastQuizzes.rows.map((r) => String(r.title || "")).filter(Boolean);
+      } catch (dbErr) {
+        console.warn("Could not query past quiz titles for deduplication:", dbErr);
+      }
+    }
+    const quiz = await generateQuiz(topic, level || "intermediate", numQuestions || 5, knownTitles);
     const quizId = `quiz_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+    const quizTitle = String(quiz.title || `${topic}: Advanced Diagnostic`).slice(0, 150);
     try {
       await client.execute({
         sql: `INSERT INTO generated_quizzes (id, user_id, topic, level, title, questions_json, category, created_at)
@@ -3475,7 +3531,7 @@ app.post("/api/quiz/generate", async (req, res) => {
           userId,
           String(topic).slice(0, 100),
           String(level || "intermediate"),
-          String(quiz.title || `${topic} Assessment`).slice(0, 150),
+          quizTitle,
           JSON.stringify(questions),
           "Subject Tests",
           Date.now()
@@ -3484,7 +3540,7 @@ app.post("/api/quiz/generate", async (req, res) => {
     } catch (saveErr) {
       console.warn("Could not persist generated quiz to DB:", saveErr);
     }
-    return res.json({ success: true, quiz: { ...quiz, id: quizId } });
+    return res.json({ success: true, quiz: { ...quiz, id: quizId, title: quizTitle } });
   } catch (err) {
     console.error("Quiz generation error:", err);
     return res.status(500).json({ error: err.message || "Quiz generation failed" });

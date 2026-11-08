@@ -4,6 +4,7 @@ import { QuizTest, UserProfile } from '../types/index.ts';
 
 interface QuizAttempt {
   id: string;
+  quiz_id?: string;
   quiz_title: string;
   category: string;
   score: number;
@@ -36,6 +37,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
   // Load persistent quizzes and past attempts from Turso DB
   const loadQuizzesAndAttempts = useCallback(async () => {
+    void testsTaken;
     setLoading(true);
     setError(null);
     try {
@@ -113,7 +115,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.careerInterest]);
+  }, [user?.id, user?.careerInterest, testsTaken]);
 
   useEffect(() => {
     loadQuizzesAndAttempts();
@@ -123,18 +125,23 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const handleGenerateNewQuiz = async () => {
     setGeneratingCustom(true);
     try {
-      const topic = user?.careerInterest ? user.careerInterest.split(',')[0].trim() : 'Computer Science & AI';
+      const interests = user?.careerInterest
+        ? user.careerInterest.split(',').map((t) => t.trim()).filter(Boolean)
+        : ['Computer Science & AI'];
+      const topic = interests[quizzes.length % interests.length] || 'Computer Science & AI';
+      const existingTitles = quizzes.map((q) => q.title);
+
       const genRes = await fetch('/api/quiz/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(user?.id ? { 'x-user-id': user.id } : {}) },
-        body: JSON.stringify({ topic, level: 'intermediate', numQuestions: 5 }),
+        body: JSON.stringify({ topic, level: 'intermediate', numQuestions: 5, existingTitles }),
       });
       if (genRes.ok) {
         const resData = await genRes.json();
         if (resData.quiz && Array.isArray(resData.quiz.questions)) {
           const newQuiz: QuizTest = {
             id: resData.quiz.id || `quiz_${Date.now()}`,
-            title: resData.quiz.title || `${topic} Diagnostic Quiz`,
+            title: resData.quiz.title || `${topic}: Specialized Diagnostic`,
             category: 'Subject Tests',
             questionsCount: resData.quiz.questions.length,
             durationMinutes: Math.max(resData.quiz.questions.length * 2, 10),
@@ -401,9 +408,13 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     </div>
                   ) : filteredQuizzes.length > 0 ? (
                     filteredQuizzes.map((q) => {
-                      const pastAttempt = normalizedAttempts.find(
-                        (a) => a.quiz_title.toLowerCase().trim() === q.title.toLowerCase().trim()
-                      );
+                      const pastAttempt = normalizedAttempts.find((a) => {
+                        if (a.quiz_id && q.id) {
+                          return a.quiz_id === q.id;
+                        }
+                        // Fallback for legacy attempts created prior to quiz_id
+                        return !a.quiz_id && a.quiz_title.toLowerCase().trim() === q.title.toLowerCase().trim();
+                      });
                       const isCompleted = !!pastAttempt;
 
                       return (

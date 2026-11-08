@@ -51,6 +51,7 @@ export const reminders = sqliteTable('reminders', {
 export const quizAttempts = sqliteTable('quiz_attempts', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull(),
+  quizId: text('quiz_id').default(''),
   quizTitle: text('quiz_title').notNull(),
   category: text('category').notNull(),
   score: integer('score').notNull(),

@@ -802,18 +802,19 @@ app.post('/api/quizzes/clear', async (req, res) => {
 
 app.post('/api/quizzes/attempt', async (req, res) => {
   const userId = await resolveUserId(req);
-  const { quizTitle, category, score, totalQuestions, weakTopics } = req.body;
+  const { quizId, quiz_id, quizTitle, category, score, totalQuestions, weakTopics } = req.body;
   if (!quizTitle || typeof score !== 'number' || typeof totalQuestions !== 'number' || totalQuestions <= 0 || score < 0) {
     return res.status(400).json({ error: 'Valid quiz Title, score, and totalQuestions are required' });
   }
   const id = `attempt-${Date.now()}`;
+  const effectiveQuizId = String(quizId || quiz_id || '').slice(0, 100);
   const weakStr = Array.isArray(weakTopics) ? weakTopics.join(',') : (typeof weakTopics === 'string' ? weakTopics : '');
   try {
     await client.execute({
-      sql: 'INSERT INTO quiz_attempts (id, user_id, quiz_title, category, score, total_questions, weak_topics, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      args: [id, userId, String(quizTitle).slice(0, 150), String(category || 'General').slice(0, 50), Math.round(score), Math.round(totalQuestions), weakStr.slice(0, 300), Date.now()],
+      sql: 'INSERT INTO quiz_attempts (id, user_id, quiz_id, quiz_title, category, score, total_questions, weak_topics, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: [id, userId, effectiveQuizId, String(quizTitle).slice(0, 150), String(category || 'General').slice(0, 50), Math.round(score), Math.round(totalQuestions), weakStr.slice(0, 300), Date.now()],
     });
-    return res.json({ ok: true, id });
+    return res.json({ ok: true, id, quizId: effectiveQuizId });
   } catch (err: any) {
     console.error('Save quiz attempt error:', err);
     return res.status(500).json({ error: 'Failed to save quiz attempt' });
@@ -1974,14 +1975,28 @@ app.post('/api/career/explore', handleCareerExplore);
 
 // AI Quiz Generation with Turso DB Persistence
 app.post('/api/quiz/generate', async (req, res) => {
-  const { topic, level, numQuestions } = req.body || {};
+  const { topic, level, numQuestions, existingTitles } = req.body || {};
   if (!topic) return res.status(400).json({ error: 'Topic required' });
   const userId = await resolveUserId(req);
 
   try {
-    const quiz = await generateQuiz(topic, level || 'intermediate', numQuestions || 5);
+    let knownTitles: string[] = Array.isArray(existingTitles) ? existingTitles.map(String) : [];
+    if (knownTitles.length === 0) {
+      try {
+        const pastQuizzes = await client.execute({
+          sql: 'SELECT title FROM generated_quizzes WHERE user_id = ? ORDER BY created_at DESC LIMIT 15',
+          args: [userId],
+        });
+        knownTitles = pastQuizzes.rows.map((r: any) => String(r.title || '')).filter(Boolean);
+      } catch (dbErr) {
+        console.warn('Could not query past quiz titles for deduplication:', dbErr);
+      }
+    }
+
+    const quiz = await generateQuiz(topic, level || 'intermediate', numQuestions || 5, knownTitles);
     const quizId = `quiz_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+    const quizTitle = String(quiz.title || `${topic}: Advanced Diagnostic`).slice(0, 150);
 
     // Save to Turso DB for persistent review
     try {
@@ -1993,7 +2008,7 @@ app.post('/api/quiz/generate', async (req, res) => {
           userId,
           String(topic).slice(0, 100),
           String(level || 'intermediate'),
-          String(quiz.title || `${topic} Assessment`).slice(0, 150),
+          quizTitle,
           JSON.stringify(questions),
           'Subject Tests',
           Date.now(),
@@ -2003,7 +2018,7 @@ app.post('/api/quiz/generate', async (req, res) => {
       console.warn('Could not persist generated quiz to DB:', saveErr);
     }
 
-    return res.json({ success: true, quiz: { ...quiz, id: quizId } });
+    return res.json({ success: true, quiz: { ...quiz, id: quizId, title: quizTitle } });
   } catch (err: any) {
     console.error('Quiz generation error:', err);
     return res.status(500).json({ error: err.message || 'Quiz generation failed' });
