@@ -114,6 +114,28 @@ async function runMigrations(): Promise<void> {
         // Column may already exist
       }
 
+      // Safe backfill: link legacy attempts to generated_quizzes id if empty
+      try {
+        await client.execute(`
+          UPDATE quiz_attempts
+          SET quiz_id = (
+            SELECT gq.id FROM generated_quizzes gq
+            WHERE gq.user_id = quiz_attempts.user_id
+              AND LOWER(TRIM(gq.title)) = LOWER(TRIM(quiz_attempts.quiz_title))
+            ORDER BY gq.created_at ASC
+            LIMIT 1
+          )
+          WHERE (quiz_id IS NULL OR quiz_id = '')
+            AND EXISTS (
+              SELECT 1 FROM generated_quizzes gq
+              WHERE gq.user_id = quiz_attempts.user_id
+                AND LOWER(TRIM(gq.title)) = LOWER(TRIM(quiz_attempts.quiz_title))
+            );
+        `);
+      } catch {
+        // Graceful fallback if no matching rows or cold start
+      }
+
       await client.execute(`
         CREATE TABLE IF NOT EXISTS career_paths (
           id TEXT PRIMARY KEY,

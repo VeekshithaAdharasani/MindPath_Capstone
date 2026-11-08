@@ -81,6 +81,7 @@ export interface QuizTest {
   iconBg: string;
   image?: string;
   questions: QuizQuestion[];
+  createdAt?: number;
 }
 
 export interface WhatIfResult {

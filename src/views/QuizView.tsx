@@ -61,6 +61,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
             iconBg: 'bg-purple-500/20 text-purple-400',
             image: '/assets/extracted/quiz_default.svg',
             questions: q.questions || [],
+            createdAt: q.createdAt,
           }));
         }
       }
@@ -84,20 +85,26 @@ export const QuizView: React.FC<QuizViewProps> = ({
             const genRes = await fetch('/api/quiz/generate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', ...(user?.id ? { 'x-user-id': user.id } : {}) },
-              body: JSON.stringify({ topic, level: 'intermediate', numQuestions: 5 }),
+              body: JSON.stringify({
+                topic,
+                level: 'intermediate',
+                numQuestions: 5,
+                existingTitles: generatedList.map((g) => g.title),
+              }),
             });
             if (genRes.ok) {
               const resData = await genRes.json();
               if (resData.quiz && Array.isArray(resData.quiz.questions)) {
                 generatedList.push({
                   id: resData.quiz.id || `quiz_${Date.now()}`,
-                  title: resData.quiz.title || `${topic} Assessment`,
+                  title: resData.quiz.title || `${topic}: Foundational Diagnostic`,
                   category: 'Subject Tests',
                   questionsCount: resData.quiz.questions.length,
                   durationMinutes: Math.max(resData.quiz.questions.length * 2, 10),
                   iconBg: 'bg-purple-500/20 text-purple-400',
                   image: '/assets/extracted/quiz_default.svg',
                   questions: resData.quiz.questions,
+                  createdAt: resData.quiz.createdAt || Date.now(),
                 });
               }
             }

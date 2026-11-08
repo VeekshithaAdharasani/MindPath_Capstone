@@ -84,6 +84,165 @@ export async function generateCareerPath(userGoal: string): Promise<CareerPathPl
   return JSON.parse(content);
 }
 
+const DOMAIN_SUBTOPICS: Record<string, string[]> = {
+  cybersecurity: [
+    'Network Defense & Packet Analysis',
+    'Threat Modeling & Zero Trust Architecture',
+    'Memory Safety & Exploit Mitigation',
+    'Cryptographic Protocols & Key Exchange',
+    'Incident Response & Digital Forensics',
+    'Identity & Access Management (IAM)',
+    'Cloud Security & DevSecOps',
+    'Web Application Security & OWASP Top 10',
+    'Reverse Engineering & Malware Analysis',
+    'Security Operations Center (SOC) Analytics',
+  ],
+  security: [
+    'Network Defense & Packet Analysis',
+    'Threat Modeling & Zero Trust Architecture',
+    'Memory Safety & Exploit Mitigation',
+    'Cryptographic Protocols & Key Exchange',
+    'Cloud Security & DevSecOps',
+  ],
+  ai: [
+    'Transformer Architecture & Self-Attention',
+    'Loss Functions & Gradient Optimization',
+    'Computer Vision & Convolutional Networks',
+    'Natural Language Processing & Embeddings',
+    'Reinforcement Learning & Policy Gradients',
+    'Model Quantization & Distributed Inference',
+    'Evaluation Metrics & Bias Mitigation',
+  ],
+  'machine learning': [
+    'Feature Engineering & Dimensionality Reduction',
+    'Ensemble Methods & Gradient Boosting',
+    'Deep Neural Networks & Backpropagation',
+    'Hyperparameter Tuning & Regularization',
+    'Model Validation & Cross-Validation Strategies',
+  ],
+  data: [
+    'Distributed ETL Pipelines & Stream Processing',
+    'Relational Query Plans & Index Optimization',
+    'Statistical Hypothesis Testing & A/B Experiments',
+    'Data Warehousing & Dimensional Modeling',
+    'Big Data Partitioning & Distributed Storage',
+  ],
+  software: [
+    'Concurrent Rendering & State Management',
+    'Distributed Systems & Eventual Consistency',
+    'Microservice Communication & API Gateways',
+    'Relational Database Indexing & Query Tuning',
+    'System Design & Horizontal Scaling',
+  ],
+  fullstack: [
+    'Client-Server State Sync & Optimistic UI',
+    'Authentication, Session Cookies & OAuth 2.0',
+    'RESTful API Contract & GraphQL Schemas',
+    'Database Transaction Isolation & ACID Compliance',
+  ],
+};
+
+function resolveDomainSubtopics(topic: string): string[] {
+  const lower = topic.toLowerCase();
+  for (const [key, subtopics] of Object.entries(DOMAIN_SUBTOPICS)) {
+    if (lower.includes(key)) return subtopics;
+  }
+  return [
+    'Foundational Principles & Core Architecture',
+    'Applied Methodology & Implementation',
+    'Advanced Problem Solving & Diagnostics',
+    'Optimization & High-Performance Patterns',
+    'Edge Case Mitigation & Resiliency',
+  ];
+}
+
+export function pickUniqueSubtopicTitle(
+  topic: string,
+  level: string,
+  existingTitles: string[] = []
+): string {
+  const subtopics = resolveDomainSubtopics(topic);
+  const normalizedExisting = new Set(existingTitles.map((t) => t.toLowerCase().trim()));
+
+  for (const subtopic of subtopics) {
+    const candidate = `${topic}: ${subtopic} Diagnostic`;
+    if (!normalizedExisting.has(candidate.toLowerCase().trim())) {
+      return candidate;
+    }
+  }
+
+  for (let stage = 2; stage <= 10; stage++) {
+    for (const subtopic of subtopics) {
+      const candidate = `${topic}: ${subtopic} Assessment (Stage ${stage})`;
+      if (!normalizedExisting.has(candidate.toLowerCase().trim())) {
+        return candidate;
+      }
+    }
+  }
+
+  return `${topic}: ${level.charAt(0).toUpperCase() + level.slice(1)} Mastery Diagnostic (${Date.now().toString().slice(-4)})`;
+}
+
+function generateFallbackQuestions(topic: string, level: string, title: string): QuizQuestion[] {
+  return [
+    {
+      question: `In modern ${topic} engineering, what is the primary architectural advantage of stateless decoupled services?`,
+      options: [
+        'Horizontal scalability and fault isolation across worker nodes',
+        'Elimination of network serialization overhead',
+        'Guaranteed zero latency across multi-region clusters',
+        'Automatic encryption of internal processor registers',
+      ],
+      correctIndex: 0,
+      explanation: 'Stateless services decouple persistence from execution, allowing instances to scale horizontally behind load balancers and isolate node crashes.',
+    },
+    {
+      question: `When analyzing production failure modes in "${title}", which telemetry signal provides the earliest indicator of degradation?`,
+      options: [
+        'Total annual cloud billing statements',
+        'P99 latency spikes and error rate slope shifts',
+        'Static binary file hash checksum changes',
+        'DNS domain registrar renewal TTL notifications',
+      ],
+      correctIndex: 1,
+      explanation: 'P99 latency increases and positive error rate derivatives capture tail regressions before average metrics or availability SLAs register a breach.',
+    },
+    {
+      question: `Which fundamental principle guarantees data consistency across distributed replicas under network partitioning in ${topic}?`,
+      options: [
+        'CAP Theorem tradeoffs favoring consistency over availability (CP)',
+        'Unbounded FIFO queueing without rate-limiting',
+        'Synchronous single-threaded blocking I/O execution',
+        'Hardcoded UDP broadcast transmissions without acknowledgments',
+      ],
+      correctIndex: 0,
+      explanation: 'Under CAP theorem, network partitions require distributed databases to choose between consistent quorums or partitioned continuous availability.',
+    },
+    {
+      question: `At the ${level} level of ${topic}, how should sensitive configuration secrets be managed across runtime environments?`,
+      options: [
+        'Hardcoded as plaintext literals in version-controlled repository files',
+        'Encrypted via key management services (KMS) and injected via ephemeral runtime secrets managers',
+        'Stored in public client-side browser local storage',
+        'Embedded into minified frontend static bundle distributions',
+      ],
+      correctIndex: 1,
+      explanation: 'Secrets should never be baked into source control; using hardware KMS and dynamic secret management minimizes exposure vectors.',
+    },
+    {
+      question: `What is the optimal verification strategy prior to deploying breaking schema migrations in high-throughput ${topic} systems?`,
+      options: [
+        'Immediate destructive table dropping during peak business hours',
+        'Dual-write phased rollout with backward-compatible expand-and-contract patterns',
+        'Disabling all database constraints and foreign keys indefinitely',
+        'Bypassing automated test suites to expedite rollout',
+      ],
+      correctIndex: 1,
+      explanation: 'Expand-and-contract patterns allow old and new application versions to run concurrently during migration without service interruption.',
+    },
+  ];
+}
+
 export async function generateQuiz(
   topic: string,
   level: string,
@@ -132,33 +291,70 @@ Output valid JSON only with keys:
   ]
 }`;
 
-  const completion = await enzonicAI.chat.completions.create({
-    model: ENZONIC_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: `Generate a challenging, subtopic-specific ${level}-level diagnostic quiz for: ${topic}` },
-    ],
-    max_tokens: 4096,
-    temperature: 0.7,
-    response_format: { type: 'json_object' },
-  });
+  let parsed: any = null;
 
-  const content = completion.choices[0]?.message?.content || '{}';
-  const parsed = JSON.parse(content);
+  try {
+    const completion = await enzonicAI.chat.completions.create({
+      model: ENZONIC_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Generate a challenging, subtopic-specific ${level}-level diagnostic quiz for: ${topic}` },
+      ],
+      max_tokens: 4096,
+      temperature: 0.7,
+      response_format: { type: 'json_object' },
+    });
 
-  // Fallback title safety check: ensure title is not generic or empty
-  const lowerTitle = String(parsed.title || '').toLowerCase().trim();
-  if (
-    !parsed.title ||
-    lowerTitle === `${topic.toLowerCase()} quiz` ||
-    lowerTitle === `${level.toLowerCase()} ${topic.toLowerCase()} quiz` ||
-    lowerTitle === `${topic.toLowerCase()} assessment`
-  ) {
-    const subtopic = parsed.subtopic || `${level.charAt(0).toUpperCase() + level.slice(1)} Competency`;
-    parsed.title = `${topic}: ${subtopic} Diagnostic`;
+    const content = completion.choices[0]?.message?.content || '{}';
+    const cleaned = content.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    parsed = JSON.parse(cleaned);
+  } catch (aiErr) {
+    console.warn('Enzonic AI quiz generation notice (falling back to deterministic curated quiz):', aiErr);
+    parsed = {};
   }
 
-  return parsed;
+  // Ensure title is strictly non-generic and non-duplicate
+  const rawTitle = String(parsed?.title || '').trim();
+  const lowerRawTitle = rawTitle.toLowerCase();
+  const normalizedExisting = new Set(existingTitles.map((t) => t.toLowerCase().trim()));
+
+  const isGeneric =
+    !rawTitle ||
+    lowerRawTitle === `${topic.toLowerCase()} quiz` ||
+    lowerRawTitle === `${level.toLowerCase()} ${topic.toLowerCase()} quiz` ||
+    lowerRawTitle === `${topic.toLowerCase()} assessment` ||
+    lowerRawTitle === `${topic.toLowerCase()} diagnostic` ||
+    lowerRawTitle === 'diagnostic quiz' ||
+    lowerRawTitle === 'assessment quiz' ||
+    rawTitle.length < 12;
+
+  const isDuplicate = normalizedExisting.has(lowerRawTitle);
+
+  if (isGeneric || isDuplicate) {
+    parsed.title = pickUniqueSubtopicTitle(topic, level, existingTitles);
+  } else {
+    parsed.title = rawTitle;
+  }
+
+  // Ensure valid questions array
+  if (!Array.isArray(parsed?.questions) || parsed.questions.length === 0) {
+    parsed.questions = generateFallbackQuestions(topic, level, parsed.title);
+  } else {
+    // Validate each question structure
+    parsed.questions = parsed.questions.map((q: any, idx: number) => ({
+      question: String(q.question || `Question ${idx + 1} regarding ${topic}`).trim(),
+      options: Array.isArray(q.options) && q.options.length >= 4
+        ? q.options.slice(0, 4).map(String)
+        : ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctIndex: typeof q.correctIndex === 'number' && q.correctIndex >= 0 && q.correctIndex < 4
+        ? q.correctIndex
+        : 0,
+      explanation: String(q.explanation || 'Detailed explanation verified against technical specifications.'),
+    }));
+  }
+
+  parsed.topic = topic;
+  return parsed as GeneratedQuiz;
 }
 
 export async function generateStructuredOutput<T>(

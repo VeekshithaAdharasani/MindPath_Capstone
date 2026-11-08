@@ -1980,23 +1980,28 @@ app.post('/api/quiz/generate', async (req, res) => {
   const userId = await resolveUserId(req);
 
   try {
-    let knownTitles: string[] = Array.isArray(existingTitles) ? existingTitles.map(String) : [];
-    if (knownTitles.length === 0) {
-      try {
-        const pastQuizzes = await client.execute({
-          sql: 'SELECT title FROM generated_quizzes WHERE user_id = ? ORDER BY created_at DESC LIMIT 15',
-          args: [userId],
-        });
-        knownTitles = pastQuizzes.rows.map((r: any) => String(r.title || '')).filter(Boolean);
-      } catch (dbErr) {
-        console.warn('Could not query past quiz titles for deduplication:', dbErr);
-      }
+    const clientTitles: string[] = Array.isArray(existingTitles)
+      ? existingTitles.map(String).map((t) => t.trim()).filter(Boolean)
+      : [];
+
+    let dbTitles: string[] = [];
+    try {
+      const pastQuizzes = await client.execute({
+        sql: 'SELECT title FROM generated_quizzes WHERE user_id = ? ORDER BY created_at DESC LIMIT 25',
+        args: [userId],
+      });
+      dbTitles = pastQuizzes.rows.map((r: any) => String(r.title || '').trim()).filter(Boolean);
+    } catch (dbErr) {
+      console.warn('Could not query past quiz titles for deduplication:', dbErr);
     }
+
+    const knownTitles = Array.from(new Set([...clientTitles, ...dbTitles]));
 
     const quiz = await generateQuiz(topic, level || 'intermediate', numQuestions || 5, knownTitles);
     const quizId = `quiz_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
     const quizTitle = String(quiz.title || `${topic}: Advanced Diagnostic`).slice(0, 150);
+    const now = Date.now();
 
     // Save to Turso DB for persistent review
     try {
@@ -2011,14 +2016,17 @@ app.post('/api/quiz/generate', async (req, res) => {
           quizTitle,
           JSON.stringify(questions),
           'Subject Tests',
-          Date.now(),
+          now,
         ],
       });
     } catch (saveErr) {
       console.warn('Could not persist generated quiz to DB:', saveErr);
     }
 
-    return res.json({ success: true, quiz: { ...quiz, id: quizId, title: quizTitle } });
+    return res.json({
+      success: true,
+      quiz: { ...quiz, id: quizId, title: quizTitle, createdAt: now },
+    });
   } catch (err: any) {
     console.error('Quiz generation error:', err);
     return res.status(500).json({ error: err.message || 'Quiz generation failed' });
