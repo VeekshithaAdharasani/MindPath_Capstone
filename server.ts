@@ -16,6 +16,8 @@ import {
   getFrontierAIModelsData,
   getStudentProfileContext,
   performWebSearch,
+  removeStudyReminderDirectly,
+  removeStudyTaskDirectly,
   reviewResumeProject,
   setStudyReminderDirectly,
   simulateMockInterview,
@@ -1274,6 +1276,38 @@ app.post('/api/ai/chat', async (req, res) => {
       });
     } catch (rErr: any) {
       console.warn('Set reminder error:', rErr?.message);
+    }
+  }
+
+  // 3b. Direct Reminder Deletion Tool (Turso Cloud DB)
+  if (/\b(remove (my )?reminders?|delete (my )?reminders?|clear (my )?reminders?|cancel (my )?reminders?)\b/i.test(latestUserMsg)) {
+    try {
+      const target = latestUserMsg.replace(/^.*?\b(remove|delete|clear|cancel)\s*(my\s*)?reminders?\s*(for|about|matching|called)?\s*/i, '').trim();
+      const removed = await removeStudyReminderDirectly(userId, target);
+      injectedContext += `\n\n[TOOL EXECUTED - TURSO DATABASE REMINDERS REMOVED]:\nRemoved Count: ${removed.removedCount}\nFilter: "${target || 'all'}"\nDirectly inform the student that their requested reminders have been removed from their MindPath reminders list in the database.\n`;
+      toolEvents.push({
+        type: 'reminder_deleted',
+        title: target || 'All Reminders',
+        query: `Removed Reminders: ${target || 'All'}`,
+      });
+    } catch (rDelErr: any) {
+      console.warn('Remove reminder error:', rDelErr?.message);
+    }
+  }
+
+  // 3c. Direct Task Deletion Tool (Turso Cloud DB)
+  if (/\b(remove (my )?tasks?|delete (my )?tasks?|clear (my )?tasks?|delete completed tasks?)\b/i.test(latestUserMsg)) {
+    try {
+      const target = latestUserMsg.replace(/^.*?\b(remove|delete|clear)\s*(my\s*)?tasks?\s*(for|about|matching|called)?\s*/i, '').trim();
+      const removed = await removeStudyTaskDirectly(userId, target);
+      injectedContext += `\n\n[TOOL EXECUTED - TURSO DATABASE TASKS REMOVED]:\nRemoved Count: ${removed.removedCount}\nFilter: "${target || 'all'}"\nDirectly inform the student that their requested study tasks have been cleared from their MindPath dashboard.\n`;
+      toolEvents.push({
+        type: 'task_deleted',
+        title: target || 'Tasks',
+        query: `Removed Tasks: ${target || 'All'}`,
+      });
+    } catch (tDelErr: any) {
+      console.warn('Remove task error:', tDelErr?.message);
     }
   }
 

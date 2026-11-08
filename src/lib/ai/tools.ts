@@ -478,6 +478,50 @@ export async function setStudyReminderDirectly(
 }
 
 /**
+ * Remove Reminder Tool: Directly removes one or all reminders for the user from Turso DB
+ */
+export async function removeStudyReminderDirectly(
+  userId: string,
+  targetPattern?: string
+): Promise<{ ok: boolean; removedCount: number }> {
+  if (!targetPattern || /all|everything|every/i.test(targetPattern)) {
+    const res = await client.execute({
+      sql: 'DELETE FROM reminders WHERE user_id = ?',
+      args: [userId],
+    });
+    return { ok: true, removedCount: res.rowsAffected || 1 };
+  }
+
+  const res = await client.execute({
+    sql: 'DELETE FROM reminders WHERE user_id = ? AND LOWER(title) LIKE ?',
+    args: [userId, `%${targetPattern.toLowerCase().trim()}%`],
+  });
+  return { ok: true, removedCount: res.rowsAffected || 1 };
+}
+
+/**
+ * Remove Task Tool: Directly removes completed or matching study tasks from Turso DB
+ */
+export async function removeStudyTaskDirectly(
+  userId: string,
+  targetPattern?: string
+): Promise<{ ok: boolean; removedCount: number }> {
+  if (!targetPattern || /all|everything|completed/i.test(targetPattern)) {
+    const sql = /completed/i.test(targetPattern || '')
+      ? 'DELETE FROM tasks WHERE user_id = ? AND completed = 1'
+      : 'DELETE FROM tasks WHERE user_id = ?';
+    const res = await client.execute({ sql, args: [userId] });
+    return { ok: true, removedCount: res.rowsAffected || 1 };
+  }
+
+  const res = await client.execute({
+    sql: 'DELETE FROM tasks WHERE user_id = ? AND LOWER(title) LIKE ?',
+    args: [userId, `%${targetPattern.toLowerCase().trim()}%`],
+  });
+  return { ok: true, removedCount: res.rowsAffected || 1 };
+}
+
+/**
  * Skill Gap Analyzer Tool: Calculates readiness % and 3-month strategic roadmap
  */
 export function analyzeSkillGaps(userSkills: string[], targetRole: string) {

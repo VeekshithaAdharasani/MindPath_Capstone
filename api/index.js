@@ -922,6 +922,32 @@ async function setStudyReminderDirectly(userId, title, timeText = "Today at 6:00
   });
   return { ok: true, id, title: title.trim() };
 }
+async function removeStudyReminderDirectly(userId, targetPattern) {
+  if (!targetPattern || /all|everything|every/i.test(targetPattern)) {
+    const res2 = await client.execute({
+      sql: "DELETE FROM reminders WHERE user_id = ?",
+      args: [userId]
+    });
+    return { ok: true, removedCount: res2.rowsAffected || 1 };
+  }
+  const res = await client.execute({
+    sql: "DELETE FROM reminders WHERE user_id = ? AND LOWER(title) LIKE ?",
+    args: [userId, `%${targetPattern.toLowerCase().trim()}%`]
+  });
+  return { ok: true, removedCount: res.rowsAffected || 1 };
+}
+async function removeStudyTaskDirectly(userId, targetPattern) {
+  if (!targetPattern || /all|everything|completed/i.test(targetPattern)) {
+    const sql = /completed/i.test(targetPattern || "") ? "DELETE FROM tasks WHERE user_id = ? AND completed = 1" : "DELETE FROM tasks WHERE user_id = ?";
+    const res2 = await client.execute({ sql, args: [userId] });
+    return { ok: true, removedCount: res2.rowsAffected || 1 };
+  }
+  const res = await client.execute({
+    sql: "DELETE FROM tasks WHERE user_id = ? AND LOWER(title) LIKE ?",
+    args: [userId, `%${targetPattern.toLowerCase().trim()}%`]
+  });
+  return { ok: true, removedCount: res.rowsAffected || 1 };
+}
 function analyzeSkillGaps(userSkills, targetRole) {
   const normalized = targetRole.toLowerCase();
   let requiredSkills = ["Python", "SQL", "Data Structures & Algorithms", "System Architecture"];
@@ -2727,6 +2753,46 @@ Directly confirm to the student that you have scheduled this reminder in their M
       });
     } catch (rErr) {
       console.warn("Set reminder error:", rErr?.message);
+    }
+  }
+  if (/\b(remove (my )?reminders?|delete (my )?reminders?|clear (my )?reminders?|cancel (my )?reminders?)\b/i.test(latestUserMsg)) {
+    try {
+      const target = latestUserMsg.replace(/^.*?\b(remove|delete|clear|cancel)\s*(my\s*)?reminders?\s*(for|about|matching|called)?\s*/i, "").trim();
+      const removed = await removeStudyReminderDirectly(userId, target);
+      injectedContext += `
+
+[TOOL EXECUTED - TURSO DATABASE REMINDERS REMOVED]:
+Removed Count: ${removed.removedCount}
+Filter: "${target || "all"}"
+Directly inform the student that their requested reminders have been removed from their MindPath reminders list in the database.
+`;
+      toolEvents.push({
+        type: "reminder_deleted",
+        title: target || "All Reminders",
+        query: `Removed Reminders: ${target || "All"}`
+      });
+    } catch (rDelErr) {
+      console.warn("Remove reminder error:", rDelErr?.message);
+    }
+  }
+  if (/\b(remove (my )?tasks?|delete (my )?tasks?|clear (my )?tasks?|delete completed tasks?)\b/i.test(latestUserMsg)) {
+    try {
+      const target = latestUserMsg.replace(/^.*?\b(remove|delete|clear)\s*(my\s*)?tasks?\s*(for|about|matching|called)?\s*/i, "").trim();
+      const removed = await removeStudyTaskDirectly(userId, target);
+      injectedContext += `
+
+[TOOL EXECUTED - TURSO DATABASE TASKS REMOVED]:
+Removed Count: ${removed.removedCount}
+Filter: "${target || "all"}"
+Directly inform the student that their requested study tasks have been cleared from their MindPath dashboard.
+`;
+      toolEvents.push({
+        type: "task_deleted",
+        title: target || "Tasks",
+        query: `Removed Tasks: ${target || "All"}`
+      });
+    } catch (tDelErr) {
+      console.warn("Remove task error:", tDelErr?.message);
     }
   }
   if (/\b(skill gap|readiness|benchmark|skills for|am i ready for|gap analysis)\b/i.test(latestUserMsg)) {

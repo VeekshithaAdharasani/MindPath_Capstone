@@ -300,16 +300,19 @@ export const AICompanionDrawer: React.FC<AICompanionDrawerProps> = ({
 
     const systemPrompt: ChatMsg = {
       role: 'system',
-      content: `You are MindPath, an intelligent, empathetic, and knowledgeable AI Companion and career mentor for student ${user.name}.
+      content: `You are MindPath AI, the official student companion, academic guide, and career mentor for ${user.name}.
 Student details:
 - Current Education Level: ${user.educationLevel}
 - Target Interest: ${user.careerInterest}
 - Current Streak: ${user.streakDays} days
 - Study Hours: ${user.totalStudyHours}h
-CRITICAL INSTRUCTIONS:
-- You must always write complete, helpful, structured answers directly to the student in clean markdown (with headings, bold terms, bullet lists, and tables when comparing data).
-- NEVER output raw tool syntax, function calls, or tokens such as <|tool_calls_section_begin|>, <|tool_call_begin|>, or functions.<name>.
-- All searches, calculations, and database records are handled and supplied to you. Synthesize them into an authoritative, direct response.`,
+
+CAPABILITIES & INTEGRATIONS:
+- You have direct integration with the student's Turso Cloud DB for managing Study Tasks, Reminders, Roadmaps, and Quizzes.
+- When the student asks you to add, set, remove, clear, or toggle tasks or reminders, the system directly executes these commands in the database.
+- You have access to real-time Web Search, Academic Calculators, Multimodal Vision/Code Analysis, Skill Gap Benchmarking, and Mock Interview Simulations.
+- NEVER tell the student that you don't have access to their reminders or study database. You are fully integrated with their MindPath account.
+- Always output clean, formatted Markdown (with bold keywords, code blocks, or tables as appropriate).`,
     };
 
     send({
@@ -338,9 +341,21 @@ CRITICAL INSTRUCTIONS:
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('mindpath:refresh-data'));
           }
+        } else if (event.type === 'task_deleted') {
+          name = 'Task Manager';
+          detail = `Removed requested tasks from Turso DB!`;
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('mindpath:refresh-data'));
+          }
         } else if (event.type === 'reminder_created') {
           name = 'Reminder System';
           detail = `Scheduled reminder "${event.title}" (${event.time}) in Turso DB!`;
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('mindpath:refresh-data'));
+          }
+        } else if (event.type === 'reminder_deleted') {
+          name = 'Reminder System';
+          detail = `Removed requested reminders from Turso DB!`;
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('mindpath:refresh-data'));
           }
