@@ -2073,20 +2073,10 @@ app.post("/api/user", async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.format() });
     }
-    const { name, email, educationLevel, careerInterest, avatarUrl, location, targetExam, bio } = parsed.data;
+    const { name, email, educationLevel, careerInterest, avatarUrl } = parsed.data;
     await client.execute({
-      sql: `UPDATE users SET name = ?, email = ?, education_level = ?, career_interest = ?${avatarUrl ? ", avatar_url = ?" : ""}${location !== void 0 ? ", location = ?" : ""}${targetExam !== void 0 ? ", target_exam = ?" : ""}${bio !== void 0 ? ", bio = ?" : ""} WHERE id = ?`,
-      args: [
-        name,
-        email,
-        educationLevel,
-        careerInterest,
-        ...avatarUrl ? [avatarUrl] : [],
-        ...location !== void 0 ? [location] : [],
-        ...targetExam !== void 0 ? [targetExam] : [],
-        ...bio !== void 0 ? [bio] : [],
-        userId
-      ]
+      sql: `UPDATE users SET name = ?, email = ?, education_level = ?, career_interest = ?${avatarUrl ? ", avatar_url = ?" : ""} WHERE id = ?`,
+      args: avatarUrl ? [name, email, educationLevel, careerInterest, avatarUrl, userId] : [name, email, educationLevel, careerInterest, userId]
     });
     return res.json({ ok: true, message: "Profile updated in Turso" });
   } catch (err) {
