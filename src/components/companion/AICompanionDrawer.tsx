@@ -25,6 +25,9 @@ import { MarkdownMessage } from './MarkdownMessage.tsx';
 
 export interface LocalAttachment extends ChatAttachment {
   id: string;
+  url?: string;
+  key?: string;
+  uploading?: boolean;
 }
 
 export interface ExtendedChatMsg extends ChatMsg {
@@ -107,9 +110,43 @@ export const AICompanionDrawer: React.FC<AICompanionDrawerProps> = ({
   const messages = activeSession?.messages || createDefaultMessage();
   const messageCitations = activeSession?.citations || {};
 
-  // Save sessions to localStorage whenever they update
+  // Load chat sessions from Turso DB on mount or when user changes
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDBSessions = async () => {
+      try {
+        const res = await fetch(`/api/chat/sessions?userId=${encodeURIComponent(userKey)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.sessions) && data.sessions.length > 0) {
+            if (!isMounted) return;
+            setSessions(data.sessions);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(sessionsStorageKey, JSON.stringify(data.sessions));
+            }
+            if (!data.sessions.some((s: ChatSession) => s.id === activeSessionId)) {
+              setActiveSessionId(data.sessions[0].id);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem(activeSessionKey, data.sessions[0].id);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Notice: loading chat sessions from DB:', err);
+      }
+    };
+
+    fetchDBSessions();
+    return () => {
+      isMounted = false;
+    };
+  }, [userKey, sessionsStorageKey, activeSessionKey, activeSessionId]);
+
+  // Save sessions to localStorage & sync to Turso DB
   const persistSessions = useCallback((updated: ChatSession[], newActiveId?: string) => {
     setSessions(updated);
+    const targetId = newActiveId || activeSessionId;
     if (newActiveId) setActiveSessionId(newActiveId);
     if (typeof window !== 'undefined') {
       localStorage.setItem(sessionsStorageKey, JSON.stringify(updated));
@@ -117,7 +154,20 @@ export const AICompanionDrawer: React.FC<AICompanionDrawerProps> = ({
         localStorage.setItem(activeSessionKey, newActiveId);
       }
     }
-  }, [sessionsStorageKey, activeSessionKey]);
+
+    // Sync session to Turso DB in background
+    const sessionToSync = updated.find((s) => s.id === targetId) || updated[0];
+    if (sessionToSync) {
+      fetch('/api/chat/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userKey,
+          session: sessionToSync,
+        }),
+      }).catch((err) => console.warn('Chat DB sync notice:', err));
+    }
+  }, [sessionsStorageKey, activeSessionKey, userKey, activeSessionId]);
 
   // Update messages in the active session
   const updateActiveSessionMessages = useCallback((
@@ -164,10 +214,14 @@ export const AICompanionDrawer: React.FC<AICompanionDrawerProps> = ({
     setShowHistory(false);
   };
 
-  // Delete a specific conversation session
+  // Delete a specific conversation session from state and Turso DB
   const handleDeleteSession = (idToDelete: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const remaining = sessions.filter((s) => s.id !== idToDelete);
+    fetch(`/api/chat/sessions/${encodeURIComponent(idToDelete)}`, {
+      method: 'DELETE',
+    }).catch((err) => console.warn('Failed to delete chat session from DB:', err));
+
     if (remaining.length === 0) {
       handleNewConversation();
       return;
@@ -176,8 +230,12 @@ export const AICompanionDrawer: React.FC<AICompanionDrawerProps> = ({
     persistSessions(remaining, nextActive);
   };
 
-  // Clear all sessions
+  // Clear all sessions from state and Turso DB
   const handleClearAllHistory = () => {
+    fetch(`/api/chat/sessions?userId=${encodeURIComponent(userKey)}`, {
+      method: 'DELETE',
+    }).catch((err) => console.warn('Failed to clear chat sessions from DB:', err));
+
     const newId = `session_${Date.now()}`;
     const cleanSession: ChatSession = {
       id: newId,
@@ -195,6 +253,7 @@ export const AICompanionDrawer: React.FC<AICompanionDrawerProps> = ({
   const [streamingDelta, setStreamingDelta] = useState('');
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
   const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [activeTool, setActiveTool] = useState<{
     name: string;
     detail: string;
@@ -377,33 +436,84 @@ When live web search results or tool results are provided, incorporate them dire
     'Solve equation: e^(i*pi) + 1 = 0 step by step',
   ];
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      if (file.size > 8 * 1024 * 1024) {
-        alert(`File "${file.name}" exceeds 8MB size limit.`);
-        return;
+    const fileList = Array.from(files);
+    setIsUploading(true);
+
+    for (const file of fileList) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`File "${file.name}" exceeds 10MB limit.`);
+        continue;
       }
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        setAttachments((prev) => [
-          ...prev,
-          {
-            id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            name: file.name,
-            type: file.type || 'application/octet-stream',
-            size: file.size,
-            dataUrl,
-          },
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
 
+        const tempId = `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const localAtt: LocalAttachment = {
+          id: tempId,
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+          size: file.size,
+          dataUrl,
+          uploading: true,
+        };
+
+        setAttachments((prev) => [...prev, localAtt]);
+
+        // Upload to Cloudflare R2 and persist record in Turso DB uploaded_files
+        const res = await fetch('/api/storage/upload-chat-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            base64Data: dataUrl,
+            contentType: file.type || 'application/octet-stream',
+            userId: userKey,
+            sessionId: activeSessionId,
+          }),
+        });
+
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData.ok && resData.file) {
+            setAttachments((prev) =>
+              prev.map((a) =>
+                a.id === tempId
+                  ? {
+                      ...a,
+                      id: resData.file.id,
+                      url: resData.file.url,
+                      key: resData.file.key,
+                      uploading: false,
+                    }
+                  : a
+              )
+            );
+          } else {
+            setAttachments((prev) =>
+              prev.map((a) => (a.id === tempId ? { ...a, uploading: false } : a))
+            );
+          }
+        } else {
+          setAttachments((prev) =>
+            prev.map((a) => (a.id === tempId ? { ...a, uploading: false } : a))
+          );
+        }
+      } catch (err) {
+        console.warn('Attachment upload notice:', err);
+      }
+    }
+
+    setIsUploading(false);
     e.target.value = '';
   };
 
@@ -624,25 +734,31 @@ When live web search results or tool results are provided, incorporate them dire
                   {m.attachments && m.attachments.length > 0 && (
                     <div className="mb-2 flex flex-wrap gap-1.5">
                       {m.attachments.map((att, aIdx) => {
-                        const isImg = att.type.startsWith('image/');
+                        const isImg = (att.type?.startsWith('image/')) || (att.url && /\.(jpeg|jpg|png|webp|gif)$/i.test(att.url));
+                        const src = att.url || att.dataUrl;
                         return (
-                          <div
+                          <a
                             key={aIdx}
-                            className="flex items-center gap-1.5 p-1 rounded-lg bg-black/30 border border-white/10 text-[10px]"
+                            href={src}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 p-1 rounded-lg bg-black/40 hover:bg-black/60 border border-white/10 hover:border-cyan-500/40 text-[10px] transition-colors group/att"
+                            title={`Open ${att.name || 'attachment'}`}
                           >
-                            {isImg ? (
+                            {isImg && src ? (
                               <img
-                                src={att.dataUrl}
+                                src={src}
                                 alt={att.name}
                                 className="w-5 h-5 object-cover rounded"
                               />
                             ) : (
                               <FileText className="w-3 h-3 text-cyan-300" />
                             )}
-                            <span className="truncate max-w-[140px] font-mono text-slate-300">
+                            <span className="truncate max-w-[140px] font-mono text-slate-300 group-hover/att:text-white">
                               {att.name}
                             </span>
-                          </div>
+                            <ExternalLink className="w-2.5 h-2.5 text-slate-400 group-hover/att:text-cyan-300" />
+                          </a>
                         );
                       })}
                     </div>
@@ -775,22 +891,32 @@ When live web search results or tool results are provided, incorporate them dire
         {attachments.length > 0 && (
           <div className="px-3 py-2 bg-[#121634] border-t border-white/10 flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-white/20">
             {attachments.map((att) => {
-              const isImg = att.type.startsWith('image/');
+              const isImg = (att.type?.startsWith('image/')) || (att.url && /\.(jpeg|jpg|png|webp|gif)$/i.test(att.url));
+              const displaySrc = att.url || att.dataUrl;
               return (
                 <div
                   key={att.id}
                   className="relative group shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#1c224a] border border-purple-500/30 text-xs text-white"
                 >
-                  {isImg ? (
-                    <img src={att.dataUrl} alt={att.name} className="w-6 h-6 object-cover rounded" />
+                  {att.uploading ? (
+                    <RefreshCw className="w-4 h-4 text-cyan-400 animate-spin shrink-0" />
+                  ) : isImg && displaySrc ? (
+                    <img src={displaySrc} alt={att.name} className="w-6 h-6 object-cover rounded" />
                   ) : (
-                    <FileText className="w-4 h-4 text-purple-400" />
+                    <FileText className="w-4 h-4 text-purple-400 shrink-0" />
                   )}
-                  <span className="truncate max-w-[120px] text-[11px] font-medium">{att.name}</span>
+                  <div className="flex flex-col">
+                    <span className="truncate max-w-[120px] text-[11px] font-medium">{att.name}</span>
+                    {att.uploading ? (
+                      <span className="text-[9px] text-cyan-300 animate-pulse font-mono">Syncing to R2...</span>
+                    ) : (
+                      <span className="text-[9px] text-emerald-400 font-mono">Cloud synced</span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeAttachment(att.id)}
-                    className="p-0.5 rounded-full hover:bg-white/20 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    className="p-0.5 rounded-full hover:bg-white/20 text-slate-400 hover:text-white transition-colors cursor-pointer ml-1"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -845,10 +971,15 @@ When live web search results or tool results are provided, incorporate them dire
             {/* Send Button */}
             <button
               type="submit"
-              disabled={(!input.trim() && attachments.length === 0) || loading}
+              disabled={(!input.trim() && attachments.length === 0) || loading || isUploading}
               className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white shadow-lg shadow-purple-500/30 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+              title={isUploading ? 'Uploading attachments to Cloud...' : 'Send Message'}
             >
-              <Send className="w-4 h-4" />
+              {isUploading ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-cyan-300" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </button>
           </form>
         </div>

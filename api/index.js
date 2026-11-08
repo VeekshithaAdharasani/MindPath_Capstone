@@ -179,10 +179,13 @@ import { drizzle } from "drizzle-orm/libsql";
 var schema_exports = {};
 __export(schema_exports, {
   careerPaths: () => careerPaths,
+  chatMessages: () => chatMessages,
+  chatSessions: () => chatSessions,
   milestones: () => milestones,
   quizAttempts: () => quizAttempts,
   reminders: () => reminders,
   tasks: () => tasks,
+  uploadedFiles: () => uploadedFiles,
   users: () => users
 });
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
@@ -250,6 +253,37 @@ var careerPaths = sqliteTable("career_paths", {
   description: text("description").notNull(),
   skills: text("skills").notNull()
   // JSON array
+});
+var chatSessions = sqliteTable("chat_sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull()
+});
+var chatMessages = sqliteTable("chat_messages", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull(),
+  userId: text("user_id").notNull(),
+  role: text("role").notNull(),
+  // 'user', 'assistant', 'system'
+  content: text("content").notNull(),
+  attachments: text("attachments").default("[]"),
+  // JSON array of LocalAttachment
+  citations: text("citations").default("[]"),
+  // JSON array of WebCitation
+  createdAt: integer("created_at").notNull()
+});
+var uploadedFiles = sqliteTable("uploaded_files", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  sessionId: text("session_id").default(""),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileUrl: text("file_url").notNull(),
+  storageKey: text("storage_key").notNull(),
+  createdAt: integer("created_at").notNull()
 });
 
 // src/lib/db/index.ts
@@ -336,6 +370,49 @@ async function initDatabase() {
         description TEXT NOT NULL,
         skills TEXT NOT NULL
       );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        attachments TEXT DEFAULT '[]',
+        citations TEXT DEFAULT '[]',
+        created_at INTEGER NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS uploaded_files (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        session_id TEXT DEFAULT '',
+        file_name TEXT NOT NULL,
+        file_type TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        file_url TEXT NOT NULL,
+        storage_key TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id, updated_at DESC);
+    `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, created_at ASC);
+    `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_uploaded_files_user ON uploaded_files(user_id, created_at DESC);
     `);
     console.log("\u2705 Turso Database schema verified (zero mock data seeded).");
   } catch (err) {
@@ -1357,7 +1434,7 @@ function validateImageBufferSignature(buffer, mime) {
   }
   return false;
 }
-app.post("/api/storage/upload", async (req, res) => {
+var handleStorageUpload = async (req, res) => {
   try {
     const { filename, base64Data, contentType } = req.body;
     if (!filename || !base64Data) {
@@ -1387,6 +1464,205 @@ app.post("/api/storage/upload", async (req, res) => {
   } catch (err) {
     console.error("R2 upload failed:", err);
     return res.status(500).json({ error: "Failed to securely process and upload file to R2" });
+  }
+};
+app.post("/api/storage/upload", handleStorageUpload);
+app.post("/api/upload", handleStorageUpload);
+app.post("/api/storage/upload-chat-file", async (req, res) => {
+  try {
+    const { filename, base64Data, contentType, userId, sessionId } = req.body;
+    if (!filename || !base64Data) {
+      return res.status(400).json({ error: "filename and base64Data required" });
+    }
+    const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, "");
+    const buffer = Buffer.from(cleanBase64, "base64");
+    if (buffer.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: "File size exceeds maximum 10MB limit" });
+    }
+    const safeUserId = String(userId || "guest").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeBase = path.basename(filename).replace(/[^a-zA-Z0-9.-]/g, "_").slice(0, 80);
+    const storageKey = `chat_files/${safeUserId}/${Date.now()}_${safeBase}`;
+    const mime = String(contentType || "application/octet-stream").toLowerCase().trim();
+    let fileUrl = "";
+    try {
+      const uploadRes = await uploadToR2(storageKey, buffer, mime);
+      fileUrl = uploadRes.url;
+    } catch (r2Err) {
+      console.warn("R2 upload notice (falling back to data URL):", r2Err);
+      fileUrl = base64Data.startsWith("data:") ? base64Data : `data:${mime};base64,${cleanBase64}`;
+    }
+    const fileId = `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await client.execute({
+      sql: `INSERT INTO uploaded_files (id, user_id, session_id, file_name, file_type, file_size, file_url, storage_key, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        fileId,
+        safeUserId,
+        String(sessionId || ""),
+        filename,
+        mime,
+        buffer.length,
+        fileUrl,
+        storageKey,
+        Date.now()
+      ]
+    });
+    return res.json({
+      ok: true,
+      file: {
+        id: fileId,
+        name: filename,
+        type: mime,
+        size: buffer.length,
+        url: fileUrl,
+        key: storageKey
+      }
+    });
+  } catch (err) {
+    console.error("Chat file upload failed:", err);
+    return res.status(500).json({ error: err.message || "Failed to upload chat file" });
+  }
+});
+app.get("/api/storage/files", async (req, res) => {
+  try {
+    const userId = req.query.userId || req.query.email || "";
+    let result;
+    if (userId) {
+      result = await client.execute({
+        sql: "SELECT * FROM uploaded_files WHERE user_id = ? ORDER BY created_at DESC",
+        args: [userId]
+      });
+    } else {
+      result = await client.execute("SELECT * FROM uploaded_files ORDER BY created_at DESC LIMIT 50");
+    }
+    return res.json({ ok: true, files: result.rows });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.get("/api/chat/sessions", async (req, res) => {
+  try {
+    const userId = req.query.userId || req.query.email || "learner";
+    const sessionsRes = await client.execute({
+      sql: "SELECT * FROM chat_sessions WHERE user_id = ? ORDER BY updated_at DESC",
+      args: [userId]
+    });
+    const sessions = [];
+    for (const row of sessionsRes.rows) {
+      const messagesRes = await client.execute({
+        sql: "SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC",
+        args: [String(row.id)]
+      });
+      const messages = messagesRes.rows.map((m) => {
+        let attachments;
+        let citations;
+        try {
+          attachments = m.attachments ? JSON.parse(String(m.attachments)) : void 0;
+        } catch {
+        }
+        try {
+          citations = m.citations ? JSON.parse(String(m.citations)) : void 0;
+        } catch {
+        }
+        return {
+          id: String(m.id),
+          role: String(m.role),
+          content: String(m.content),
+          attachments: Array.isArray(attachments) && attachments.length > 0 ? attachments : void 0,
+          citations: Array.isArray(citations) && citations.length > 0 ? citations : void 0
+        };
+      });
+      sessions.push({
+        id: String(row.id),
+        title: String(row.title),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+        messages
+      });
+    }
+    return res.json({ ok: true, sessions });
+  } catch (err) {
+    console.error("Fetch chat sessions error:", err);
+    return res.status(500).json({ error: err.message || "Failed to fetch chat sessions" });
+  }
+});
+app.post("/api/chat/sync", async (req, res) => {
+  try {
+    const { userId, session } = req.body;
+    if (!userId || !session?.id) {
+      return res.status(400).json({ error: "userId and session with id are required" });
+    }
+    const sessionId = String(session.id);
+    const title = String(session.title || "Conversation");
+    const createdAt = Number(session.createdAt || Date.now());
+    const updatedAt = Number(session.updatedAt || Date.now());
+    await client.execute({
+      sql: `INSERT INTO chat_sessions (id, user_id, title, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              title = excluded.title,
+              updated_at = excluded.updated_at`,
+      args: [sessionId, String(userId), title, createdAt, updatedAt]
+    });
+    await client.execute({
+      sql: "DELETE FROM chat_messages WHERE session_id = ?",
+      args: [sessionId]
+    });
+    if (Array.isArray(session.messages)) {
+      for (let i = 0; i < session.messages.length; i++) {
+        const msg = session.messages[i];
+        const msgId = msg.id || `${sessionId}_msg_${i}_${Date.now()}`;
+        const role = String(msg.role || "user");
+        const content = String(msg.content || "");
+        const attachmentsJson = JSON.stringify(msg.attachments || []);
+        const citationsJson = JSON.stringify(session.citations?.[i] || msg.citations || []);
+        const msgCreatedAt = createdAt + i * 10;
+        await client.execute({
+          sql: `INSERT INTO chat_messages (id, session_id, user_id, role, content, attachments, citations, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [msgId, sessionId, String(userId), role, content, attachmentsJson, citationsJson, msgCreatedAt]
+        });
+      }
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Chat sync error:", err);
+    return res.status(500).json({ error: err.message || "Failed to sync chat session" });
+  }
+});
+app.delete("/api/chat/sessions/:id", async (req, res) => {
+  try {
+    const sessionId = req.params.id;
+    await client.execute({
+      sql: "DELETE FROM chat_messages WHERE session_id = ?",
+      args: [sessionId]
+    });
+    await client.execute({
+      sql: "DELETE FROM chat_sessions WHERE id = ?",
+      args: [sessionId]
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.delete("/api/chat/sessions", async (req, res) => {
+  try {
+    const userId = req.query.userId || req.body?.userId;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+    await client.execute({
+      sql: "DELETE FROM chat_messages WHERE user_id = ?",
+      args: [userId]
+    });
+    await client.execute({
+      sql: "DELETE FROM chat_sessions WHERE user_id = ?",
+      args: [userId]
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 });
 app.get("/api/ai/health", async (_req, res) => {

@@ -94,15 +94,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setUploadingImage(true);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-      const res = await fetch('/api/upload', {
+      const res = await fetch('/api/storage/upload', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'x-user-id': user.id || 'anonymous_user',
         },
-        body: formData,
+        body: JSON.stringify({
+          filename: file.name,
+          base64Data: dataUrl,
+          contentType: file.type || 'image/png',
+        }),
       });
 
       const data = await res.json();

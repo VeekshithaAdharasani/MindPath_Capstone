@@ -605,7 +605,7 @@ function validateImageBufferSignature(buffer: Buffer, mime: string): boolean {
   return false;
 }
 
-app.post('/api/storage/upload', async (req, res) => {
+const handleStorageUpload = async (req: express.Request, res: express.Response) => {
   try {
     const { filename, base64Data, contentType } = req.body;
     if (!filename || !base64Data) {
@@ -644,7 +644,245 @@ app.post('/api/storage/upload', async (req, res) => {
     console.error('R2 upload failed:', err);
     return res.status(500).json({ error: 'Failed to securely process and upload file to R2' });
   }
+};
+
+app.post('/api/storage/upload', handleStorageUpload);
+app.post('/api/upload', handleStorageUpload);
+
+// -------------------------------------------------------------
+// CHAT STORAGE & FILE ATTACHMENTS (TURSO DB + CLOUDFLARE R2)
+// -------------------------------------------------------------
+
+// Upload files/images attached in AI Companion chat and save to Turso DB
+app.post('/api/storage/upload-chat-file', async (req, res) => {
+  try {
+    const { filename, base64Data, contentType, userId, sessionId } = req.body;
+    if (!filename || !base64Data) {
+      return res.status(400).json({ error: 'filename and base64Data required' });
+    }
+
+    const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+
+    // Max 10MB limit for chat attachments
+    if (buffer.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds maximum 10MB limit' });
+    }
+
+    const safeUserId = String(userId || 'guest').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeBase = path.basename(filename).replace(/[^a-zA-Z0-9.-]/g, '_').slice(0, 80);
+    const storageKey = `chat_files/${safeUserId}/${Date.now()}_${safeBase}`;
+    const mime = String(contentType || 'application/octet-stream').toLowerCase().trim();
+
+    // 1. Upload to Cloudflare R2
+    let fileUrl = '';
+    try {
+      const uploadRes = await uploadToR2(storageKey, buffer, mime);
+      fileUrl = uploadRes.url;
+    } catch (r2Err) {
+      console.warn('R2 upload notice (falling back to data URL):', r2Err);
+      fileUrl = base64Data.startsWith('data:') ? base64Data : `data:${mime};base64,${cleanBase64}`;
+    }
+
+    // 2. Persist to Turso DB uploaded_files table
+    const fileId = `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await client.execute({
+      sql: `INSERT INTO uploaded_files (id, user_id, session_id, file_name, file_type, file_size, file_url, storage_key, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        fileId,
+        safeUserId,
+        String(sessionId || ''),
+        filename,
+        mime,
+        buffer.length,
+        fileUrl,
+        storageKey,
+        Date.now(),
+      ],
+    });
+
+    return res.json({
+      ok: true,
+      file: {
+        id: fileId,
+        name: filename,
+        type: mime,
+        size: buffer.length,
+        url: fileUrl,
+        key: storageKey,
+      },
+    });
+  } catch (err: any) {
+    console.error('Chat file upload failed:', err);
+    return res.status(500).json({ error: err.message || 'Failed to upload chat file' });
+  }
 });
+
+// Get user uploaded files from DB
+app.get('/api/storage/files', async (req, res) => {
+  try {
+    const userId = (req.query.userId as string) || (req.query.email as string) || '';
+    let result: any;
+    if (userId) {
+      result = await client.execute({
+        sql: 'SELECT * FROM uploaded_files WHERE user_id = ? ORDER BY created_at DESC',
+        args: [userId],
+      });
+    } else {
+      result = await client.execute('SELECT * FROM uploaded_files ORDER BY created_at DESC LIMIT 50');
+    }
+    return res.json({ ok: true, files: result.rows });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch all chat sessions & messages from DB for the user
+app.get('/api/chat/sessions', async (req, res) => {
+  try {
+    const userId = (req.query.userId as string) || (req.query.email as string) || 'learner';
+    const sessionsRes = await client.execute({
+      sql: 'SELECT * FROM chat_sessions WHERE user_id = ? ORDER BY updated_at DESC',
+      args: [userId],
+    });
+
+    const sessions = [];
+    for (const row of sessionsRes.rows) {
+      const messagesRes = await client.execute({
+        sql: 'SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC',
+        args: [String(row.id)],
+      });
+
+      const messages = messagesRes.rows.map((m) => {
+        let attachments: any;
+        let citations: any;
+        try {
+          attachments = m.attachments ? JSON.parse(String(m.attachments)) : undefined;
+        } catch {}
+        try {
+          citations = m.citations ? JSON.parse(String(m.citations)) : undefined;
+        } catch {}
+
+        return {
+          id: String(m.id),
+          role: String(m.role) as 'user' | 'assistant' | 'system',
+          content: String(m.content),
+          attachments: Array.isArray(attachments) && attachments.length > 0 ? attachments : undefined,
+          citations: Array.isArray(citations) && citations.length > 0 ? citations : undefined,
+        };
+      });
+
+      sessions.push({
+        id: String(row.id),
+        title: String(row.title),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+        messages,
+      });
+    }
+
+    return res.json({ ok: true, sessions });
+  } catch (err: any) {
+    console.error('Fetch chat sessions error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to fetch chat sessions' });
+  }
+});
+
+// Sync full chat session with messages to Turso DB
+app.post('/api/chat/sync', async (req, res) => {
+  try {
+    const { userId, session } = req.body;
+    if (!userId || !session?.id) {
+      return res.status(400).json({ error: 'userId and session with id are required' });
+    }
+
+    const sessionId = String(session.id);
+    const title = String(session.title || 'Conversation');
+    const createdAt = Number(session.createdAt || Date.now());
+    const updatedAt = Number(session.updatedAt || Date.now());
+
+    // 1. Upsert session
+    await client.execute({
+      sql: `INSERT INTO chat_sessions (id, user_id, title, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              title = excluded.title,
+              updated_at = excluded.updated_at`,
+      args: [sessionId, String(userId), title, createdAt, updatedAt],
+    });
+
+    // 2. Clear previous messages for this session
+    await client.execute({
+      sql: 'DELETE FROM chat_messages WHERE session_id = ?',
+      args: [sessionId],
+    });
+
+    // 3. Insert current messages
+    if (Array.isArray(session.messages)) {
+      for (let i = 0; i < session.messages.length; i++) {
+        const msg = session.messages[i];
+        const msgId = msg.id || `${sessionId}_msg_${i}_${Date.now()}`;
+        const role = String(msg.role || 'user');
+        const content = String(msg.content || '');
+        const attachmentsJson = JSON.stringify(msg.attachments || []);
+        const citationsJson = JSON.stringify(session.citations?.[i] || msg.citations || []);
+        const msgCreatedAt = createdAt + i * 10;
+
+        await client.execute({
+          sql: `INSERT INTO chat_messages (id, session_id, user_id, role, content, attachments, citations, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [msgId, sessionId, String(userId), role, content, attachmentsJson, citationsJson, msgCreatedAt],
+        });
+      }
+    }
+
+    return res.json({ ok: true });
+  } catch (err: any) {
+    console.error('Chat sync error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to sync chat session' });
+  }
+});
+
+// Delete specific chat session and its messages from DB
+app.delete('/api/chat/sessions/:id', async (req, res) => {
+  try {
+    const sessionId = req.params.id;
+    await client.execute({
+      sql: 'DELETE FROM chat_messages WHERE session_id = ?',
+      args: [sessionId],
+    });
+    await client.execute({
+      sql: 'DELETE FROM chat_sessions WHERE id = ?',
+      args: [sessionId],
+    });
+    return res.json({ ok: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete all chat sessions and messages for user
+app.delete('/api/chat/sessions', async (req, res) => {
+  try {
+    const userId = (req.query.userId as string) || (req.body?.userId as string);
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    await client.execute({
+      sql: 'DELETE FROM chat_messages WHERE user_id = ?',
+      args: [userId],
+    });
+    await client.execute({
+      sql: 'DELETE FROM chat_sessions WHERE user_id = ?',
+      args: [userId],
+    });
+    return res.json({ ok: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 
 // -------------------------------------------------------------
 // ENZONIC NVIDIA ROTATOR & AI APIS

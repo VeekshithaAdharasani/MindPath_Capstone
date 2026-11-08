@@ -65,3 +65,35 @@ export const careerPaths = sqliteTable('career_paths', {
   description: text('description').notNull(),
   skills: text('skills').notNull(), // JSON array
 });
+
+export const chatSessions = sqliteTable('chat_sessions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  title: text('title').notNull(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export const chatMessages = sqliteTable('chat_messages', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  userId: text('user_id').notNull(),
+  role: text('role').notNull(), // 'user', 'assistant', 'system'
+  content: text('content').notNull(),
+  attachments: text('attachments').default('[]'), // JSON array of LocalAttachment
+  citations: text('citations').default('[]'), // JSON array of WebCitation
+  createdAt: integer('created_at').notNull(),
+});
+
+export const uploadedFiles = sqliteTable('uploaded_files', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  sessionId: text('session_id').default(''),
+  fileName: text('file_name').notNull(),
+  fileType: text('file_type').notNull(),
+  fileSize: integer('file_size').notNull(),
+  fileUrl: text('file_url').notNull(),
+  storageKey: text('storage_key').notNull(),
+  createdAt: integer('created_at').notNull(),
+});
+
