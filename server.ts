@@ -909,6 +909,57 @@ app.get('/api/ai/search', async (req, res) => {
   }
 });
 
+function extractToolCall(text: string): { toolName: string; query: string } | null {
+  if (!text) return null;
+
+  // Pattern 1: Special tokens: functions.live_web_search:0<|tool_call_argument_begin|>{"query": "..."}<|tool_call_end|>
+  const matchToken = text.match(/functions\.([a-zA-Z0-9_-]+):?\d*<\|tool_call_argument_begin\|>([\s\S]*?)<\|tool_call_end\|>/);
+  if (matchToken) {
+    let q = '';
+    try {
+      const parsed = JSON.parse(matchToken[2].trim());
+      q = parsed.query || parsed.q || parsed.expression || Object.values(parsed)[0] || '';
+    } catch {
+      q = matchToken[2].replace(/[{}"]/g, '').trim();
+    }
+    return { toolName: matchToken[1], query: String(q) };
+  }
+
+  // Pattern 2: Text-based: Tool: live_web_search\nParameters: {"query": "..."}
+  const matchText = text.match(/Tool:\s*([a-zA-Z0-9_-]+)\s*\n*Parameters:\s*(\{[\s\S]*?\})/i);
+  if (matchText) {
+    let q = '';
+    try {
+      const parsed = JSON.parse(matchText[2].trim());
+      q = parsed.query || parsed.q || parsed.expression || Object.values(parsed)[0] || '';
+    } catch {
+      q = matchText[2].replace(/[{}"]/g, '').trim();
+    }
+    return { toolName: matchText[1], query: String(q) };
+  }
+
+  // Pattern 3: Raw tool_calls_section containing query
+  if (text.includes('<|tool_calls_section_begin|>') || text.includes('functions.live_web_search')) {
+    const qMatch = text.match(/"query":\s*"([^"]+)"/);
+    if (qMatch) {
+      return { toolName: 'live_web_search', query: qMatch[1] };
+    }
+  }
+
+  return null;
+}
+
+function cleanChatOutput(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/gi, '')
+    .replace(/<\|tool_call_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, '')
+    .replace(/Tool:\s*[a-zA-Z0-9_-]+\s*\n*Parameters:\s*\{[\s\S]*?\}/gi, '')
+    .replace(/functions\.[a-zA-Z0-9_-]+:?\d*<\|tool_call_argument_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, '')
+    .replace(/<\|[^>]*\|>/g, '')
+    .trim();
+}
+
 app.post('/api/ai/chat', async (req, res) => {
   const userId = getUserId(req);
   const { messages, stream, temperature, maxTokens, responseFormat, enableWebSearch, attachments } = req.body;
@@ -1093,7 +1144,6 @@ app.post('/api/ai/chat', async (req, res) => {
       toolEvents.push({
         type: 'database',
         query: 'Turso DB Student Profile',
-        citations: [{ title: 'Live Turso Database', url: '#turso-db', snippet: `${studentData.streakDays}d Streak • ${studentData.totalStudyHours}h Study Time`, source: 'academic' }],
       });
     } catch (dbErr: any) {
       console.warn('DB context error:', dbErr?.message);
@@ -1205,6 +1255,9 @@ app.post('/api/ai/chat', async (req, res) => {
     }
   }
 
+  // Always instruct model to write directly to student without tool calling syntax
+  injectedContext += '\n\nCRITICAL DIRECTIVE: You are speaking directly to the student. All live web data, salary benchmarks, calculations, and student records are already retrieved and supplied above. You must NEVER output tool calling syntax, JSON function calls, or tokens such as <|tool_calls_section_begin|>, <|tool_call_begin|>, or functions.<name>. Synthesize the provided data and write your final, complete response directly to the student in clean markdown.';
+
   // Inject all tools context into system prompt
   if (injectedContext) {
     let injected = false;
@@ -1232,9 +1285,65 @@ app.post('/api/ai/chat', async (req, res) => {
         res.write(`data: ${JSON.stringify({ toolEvent: tEvent })}\n\n`);
       }
 
-      for await (const delta of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 1200 })) {
-        res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+      let toolBuffer = '';
+      const streamIter = enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 });
+      let toolExecuted = false;
+
+      for await (const chunk of streamIter) {
+        // Detect and intercept raw tool call tokens if emitted by the model
+        if (!toolExecuted && (chunk.includes('<|tool_calls_section_begin|>') || chunk.includes('functions.live_web_search') || chunk.trim().startsWith('Tool:'))) {
+          toolBuffer += chunk;
+          continue;
+        }
+
+        if (toolBuffer) {
+          toolBuffer += chunk;
+          if (toolBuffer.includes('<|tool_calls_section_end|>') || toolBuffer.length >= 250) {
+            const tc = extractToolCall(toolBuffer);
+            if (tc) {
+              toolExecuted = true;
+              let toolData = '';
+              if (tc.toolName.includes('search')) {
+                res.write(`data: ${JSON.stringify({ toolEvent: { type: 'web_search', query: tc.query } })}\n\n`);
+                const sr = await performWebSearch(tc.query);
+                toolData = sr.map((r, i) => `[Source ${i + 1}]: "${r.title}"\n${r.snippet}\nURL: ${r.url}`).join('\n\n');
+              } else if (tc.toolName.includes('calc') || tc.toolName.includes('math')) {
+                const calc = solveAcademicCalculation(tc.query);
+                toolData = `Calculation Result: ${calc.result}`;
+              } else {
+                toolData = `Action completed for: ${tc.query}`;
+              }
+
+              // Append tool results and ask model for final answer directly
+              augmentedMessages.push({
+                role: 'assistant',
+                content: toolBuffer,
+              });
+              augmentedMessages.push({
+                role: 'user',
+                content: `[TOOL RESULTS RECEIVED]:\n${toolData}\n\nCRITICAL INSTRUCTION: Synthesize these findings and write your complete, direct, comprehensive answer for the student now in structured markdown. Do NOT output any tool calling syntax or <|...|> tokens.`,
+              });
+
+              toolBuffer = '';
+              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 })) {
+                const cleaned = finalChunk.replace(/<\|[^>]*\|>/g, '');
+                if (cleaned) {
+                  res.write(`data: ${JSON.stringify({ delta: cleaned })}\n\n`);
+                }
+              }
+              break;
+            }
+          }
+          continue;
+        }
+
+        // Clean delta of any internal tokens and write
+        const cleaned = chunk.replace(/<\|[^>]*\|>/g, '');
+        if (cleaned) {
+          res.write(`data: ${JSON.stringify({ delta: cleaned })}\n\n`);
+        }
       }
+
       res.write('data: [DONE]\n\n');
       res.end();
     } catch (e: any) {
@@ -1244,13 +1353,36 @@ app.post('/api/ai/chat', async (req, res) => {
     return;
   }
 
-  const result = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, responseFormat });
+  let result: any = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, responseFormat });
+  if (result.ok && result.data?.choices?.[0]?.message?.content) {
+    const rawContent = result.data.choices[0].message.content;
+    const tc = extractToolCall(rawContent);
+    if (tc) {
+      let toolData = '';
+      if (tc.toolName.includes('search')) {
+        const sr = await performWebSearch(tc.query);
+        toolData = sr.map((r, i) => `[Source ${i + 1}]: "${r.title}"\n${r.snippet}\nURL: ${r.url}`).join('\n\n');
+      } else if (tc.toolName.includes('calc') || tc.toolName.includes('math')) {
+        toolData = `Calculation Result: ${solveAcademicCalculation(tc.query).result}`;
+      }
+      augmentedMessages.push({ role: 'assistant', content: rawContent });
+      augmentedMessages.push({
+        role: 'user',
+        content: `[TOOL RESULTS RECEIVED]:\n${toolData}\n\nCRITICAL INSTRUCTION: Provide your complete, direct, comprehensive answer for the student now in structured markdown. Do NOT output any tool calling syntax.`,
+      });
+      result = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, responseFormat });
+    }
+
+    if (result.ok && result.data?.choices?.[0]?.message?.content) {
+      result.data.choices[0].message.content = cleanChatOutput(result.data.choices[0].message.content);
+    }
+  }
+
   if (!result.ok) {
     return res.status(result.error?.code === 'RATE_LIMITED' ? 429 : 502).json({ error: result.error });
   }
   return res.json({
     ...result.data,
-    citations: searchResults,
   });
 });
 

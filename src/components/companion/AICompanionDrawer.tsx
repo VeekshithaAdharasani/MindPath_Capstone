@@ -307,11 +307,11 @@ Student details:
 - Target Interest: ${user.careerInterest}
 - Current Streak: ${user.streakDays} days
 - Study Hours: ${user.totalStudyHours}h
-You have active access to real-time LIVE WEB SEARCH, Academic Math Solver, Task Scheduler, Reminder System, Skill Gap Analyzer, Mock Interview Simulator, Resume Reviewer, and MindPath Knowledge Base.
-When live web search results or tool results are provided, incorporate them directly into your response. For greetings (hi, hey, hello) reply warmly and enthusiastically without triggering search. Keep answers structured, friendly, actionable, and formatted with clean markdown.`,
+CRITICAL INSTRUCTIONS:
+- You must always write complete, helpful, structured answers directly to the student in clean markdown (with headings, bold terms, bullet lists, and tables when comparing data).
+- NEVER output raw tool syntax, function calls, or tokens such as <|tool_calls_section_begin|>, <|tool_call_begin|>, or functions.<name>.
+- All searches, calculations, and database records are handled and supplied to you. Synthesize them into an authoritative, direct response.`,
     };
-
-    let latestToolCitations: WebCitation[] = [];
 
     send({
       userId: user.id,
@@ -324,8 +324,8 @@ When live web search results or tool results are provided, incorporate them dire
         dataUrl: a.dataUrl,
       })),
       onToolEvent: (event: ToolEvent) => {
-        let name = 'Live Web Search';
-        let detail = `Searching real-time web for "${event.query || ''}"...`;
+        let name = 'Smart Research';
+        let detail = `Analyzing live data for "${event.query || ''}"...`;
 
         if (event.type === 'academic') {
           name = 'Academic Solver';
@@ -380,24 +380,26 @@ When live web search results or tool results are provided, incorporate them dire
         setActiveTool({
           name,
           detail,
-          citations: event.citations,
         });
-
-        if (event.citations && event.citations.length > 0) {
-          latestToolCitations = [...latestToolCitations, ...event.citations];
-        }
       },
       onDelta: (delta) => {
-        setStreamingDelta((prev) => prev + delta);
+        // Filter out any internal model tokens from being streamed to UI
+        const cleanDelta = delta.replace(/<\|[^>]*\|>/g, '');
+        if (cleanDelta) {
+          setStreamingDelta((prev) => prev + cleanDelta);
+        }
       },
       onDone: (full) => {
-        const newAssistantIndex = updatedMessages.length;
-        const finalMessages: ExtendedChatMsg[] = [...updatedMessages, { role: 'assistant', content: full }];
-        const finalCitations = latestToolCitations.length > 0
-          ? { ...messageCitations, [newAssistantIndex]: latestToolCitations }
-          : messageCitations;
+        const cleanFull = full
+          .replace(/<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/gi, '')
+          .replace(/<\|tool_call_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, '')
+          .replace(/Tool:\s*[a-zA-Z0-9_-]+\s*\n*Parameters:\s*\{[\s\S]*?\}/gi, '')
+          .replace(/functions\.[a-zA-Z0-9_-]+:?\d*<\|tool_call_argument_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, '')
+          .replace(/<\|[^>]*\|>/g, '')
+          .trim();
 
-        updateActiveSessionMessages(finalMessages, finalCitations);
+        const finalMessages: ExtendedChatMsg[] = [...updatedMessages, { role: 'assistant', content: cleanFull }];
+        updateActiveSessionMessages(finalMessages);
         setStreamingDelta('');
         setActiveTool(null);
       },
@@ -769,32 +771,6 @@ When live web search results or tool results are provided, incorporate them dire
                   ) : (
                     <div>
                       <MarkdownMessage content={m.content} />
-
-                      {/* Source Citations Box if web search was used */}
-                      {citations && citations.length > 0 && (
-                        <div className="mt-3 pt-2.5 border-t border-white/10 text-[10px]">
-                          <p className="text-slate-400 font-semibold mb-1 flex items-center gap-1 text-cyan-300">
-                            <Globe className="w-3 h-3" />
-                            <span>Live Web Sources ({citations.length}):</span>
-                          </p>
-                          <div className="space-y-1 mt-1">
-                            {citations.map((cite, cIdx) => (
-                              <a
-                                key={cIdx}
-                                href={cite.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-between gap-1 p-1 rounded-md bg-[#0d1024] hover:bg-indigo-950/40 border border-white/5 text-indigo-300 hover:text-white transition-colors"
-                              >
-                                <span className="truncate max-w-[360px] font-medium">
-                                  {cIdx + 1}. {cite.title}
-                                </span>
-                                <ExternalLink className="w-2.5 h-2.5 shrink-0 text-slate-400" />
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
