@@ -146,6 +146,62 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_uploaded_files_user ON uploaded_files(user_id, created_at DESC);
     `);
 
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS course_enrollments (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        course_id TEXT NOT NULL,
+        course_title TEXT NOT NULL,
+        source TEXT NOT NULL,
+        progress INTEGER DEFAULT 0,
+        enrolled_at INTEGER NOT NULL,
+        completed_at INTEGER
+      );
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS user_course_lessons (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        course_id TEXT NOT NULL,
+        lesson_id TEXT NOT NULL,
+        lesson_title TEXT NOT NULL,
+        video_url TEXT,
+        video_source TEXT,
+        completed INTEGER DEFAULT 0,
+        completed_at INTEGER
+      );
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS generated_career_paths (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        goal TEXT NOT NULL,
+        path_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS search_cache (
+        query TEXT PRIMARY KEY,
+        results_json TEXT NOT NULL,
+        cached_at INTEGER NOT NULL,
+        ttl_ms INTEGER NOT NULL DEFAULT 86400000
+      );
+    `);
+
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_course_enrollments_user ON course_enrollments(user_id);
+    `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_user_course_lessons_user ON user_course_lessons(user_id, course_id);
+    `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_generated_career_paths_user ON generated_career_paths(user_id);
+    `);
+
     console.log('✅ Turso Database schema verified (zero mock data seeded).');
   } catch (err: any) {
     console.error('Database init error:', err?.message || err);

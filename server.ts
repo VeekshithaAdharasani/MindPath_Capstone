@@ -22,6 +22,8 @@ import {
   solveAcademicCalculation,
 } from './src/lib/ai/tools.ts';
 import { client, initDatabase } from './src/lib/db/index.ts';
+import { searchAllSources } from './src/lib/pipeline/course-pipeline.ts';
+import { generateCareerPath, generateQuiz } from './src/lib/services/enzonic-ai.ts';
 import { uploadToR2 } from './src/lib/storage/r2.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1526,6 +1528,182 @@ Analyze this option and return JSON matching:
       ],
     });
   } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// COURSE PIPELINE & AI LEARNING DISCOVERY ROUTES
+// -------------------------------------------------------------
+
+// Course Discovery Endpoint
+app.get('/api/courses', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.status(400).json({ error: 'Query required' });
+
+  const includeVideos = req.query.includeVideos !== undefined ? req.query.includeVideos === 'true' : true;
+  const includeCourses = req.query.includeCourses !== undefined ? req.query.includeCourses === 'true' : true;
+  const includeLessons = req.query.includeLessons !== undefined ? req.query.includeLessons === 'true' : false;
+  const maxPerSource = parseInt(req.query.maxPerSource as string, 10) || 10;
+
+  try {
+    const results = await searchAllSources(q, {
+      includeVideos,
+      includeCourses,
+      includeLessons,
+      maxPerSource,
+      useCache: true,
+    });
+    return res.json({ success: true, query: q, results });
+  } catch (err: any) {
+    console.error('Course search error:', err);
+    return res.status(500).json({ error: err.message || 'Course search failed' });
+  }
+});
+
+// Video Aggregation (YouTube + Internet Archive)
+app.get('/api/videos', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.status(400).json({ error: 'Query required' });
+
+  try {
+    const results = await searchAllSources(q, {
+      includeVideos: true,
+      includeCourses: false,
+      includeLessons: false,
+      maxPerSource: 10,
+      useCache: true,
+    });
+    return res.json({ success: true, query: q, results });
+  } catch (err: any) {
+    console.error('Video search error:', err);
+    return res.status(500).json({ error: err.message || 'Video search failed' });
+  }
+});
+
+// Lesson Content
+app.get('/api/lessons', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.status(400).json({ error: 'Query required' });
+
+  try {
+    const results = await searchAllSources(q, {
+      includeVideos: false,
+      includeCourses: false,
+      includeLessons: true,
+      maxPerSource: 10,
+      useCache: true,
+    });
+    return res.json({ success: true, query: q, results });
+  } catch (err: any) {
+    console.error('Lesson search error:', err);
+    return res.status(500).json({ error: err.message || 'Lesson search failed' });
+  }
+});
+
+// AI Career Path Generation & Persistence
+app.post('/api/career/path', async (req, res) => {
+  const { goal } = req.body || {};
+  const userId = resolveUserId(req);
+  if (!goal) return res.status(400).json({ error: 'Goal required' });
+
+  try {
+    const pathResult = await generateCareerPath(goal);
+
+    // Persist to Turso DB
+    const id = `cp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    try {
+      await client.execute({
+        sql: 'INSERT INTO generated_career_paths (id, user_id, goal, path_json, created_at) VALUES (?, ?, ?, ?, ?)',
+        args: [id, userId || 'anonymous', goal, JSON.stringify(pathResult), Date.now()],
+      });
+    } catch (dbErr) {
+      console.warn('Could not persist career path to database:', dbErr);
+    }
+
+    return res.json({ success: true, path: pathResult, id });
+  } catch (err: any) {
+    console.error('Career path generation error:', err);
+    return res.status(500).json({ error: err.message || 'Career path generation failed' });
+  }
+});
+
+// AI Quiz Generation
+app.post('/api/quiz/generate', async (req, res) => {
+  const { topic, level, numQuestions } = req.body || {};
+  if (!topic) return res.status(400).json({ error: 'Topic required' });
+
+  try {
+    const quiz = await generateQuiz(topic, level || 'intermediate', numQuestions || 10);
+    return res.json({ success: true, quiz });
+  } catch (err: any) {
+    console.error('Quiz generation error:', err);
+    return res.status(500).json({ error: err.message || 'Quiz generation failed' });
+  }
+});
+
+// Save or Update User Course Lesson Progress
+app.post('/api/user_course_lessons', async (req, res) => {
+  const { courseId, lessonId, lessonTitle, videoUrl, videoSource, completed } = req.body || {};
+  const userId = resolveUserId(req);
+
+  if (!courseId || !lessonId) {
+    return res.status(400).json({ error: 'courseId and lessonId required' });
+  }
+
+  const id = `ucl_${userId || 'anon'}_${courseId}_${lessonId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const isCompleted = completed ? 1 : 0;
+  const completedAt = isCompleted ? Date.now() : null;
+
+  try {
+    await client.execute({
+      sql: `INSERT INTO user_course_lessons (id, user_id, course_id, lesson_id, lesson_title, video_url, video_source, completed, completed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              completed = excluded.completed,
+              completed_at = excluded.completed_at,
+              lesson_title = excluded.lesson_title,
+              video_url = excluded.video_url,
+              video_source = excluded.video_source`,
+      args: [
+        id,
+        userId || 'anonymous',
+        courseId,
+        lessonId,
+        lessonTitle || lessonId,
+        videoUrl || null,
+        videoSource || null,
+        isCompleted,
+        completedAt,
+      ],
+    });
+    return res.json({ success: true, id, completed: isCompleted });
+  } catch (err: any) {
+    console.error('Error saving user course lesson:', err);
+    return res.status(500).json({ error: err.message || 'Failed to save lesson progress' });
+  }
+});
+
+// Get User Course Lesson Progress
+app.get('/api/user_course_lessons', async (req, res) => {
+  const userId = resolveUserId(req);
+  const courseId = req.query.courseId as string;
+  if (!userId) return res.json({ success: true, completedLessons: [] });
+
+  try {
+    const result = courseId
+      ? await client.execute({
+          sql: 'SELECT lesson_id, completed FROM user_course_lessons WHERE user_id = ? AND course_id = ? AND completed = 1',
+          args: [userId, courseId],
+        })
+      : await client.execute({
+          sql: 'SELECT lesson_id, course_id, completed FROM user_course_lessons WHERE user_id = ? AND completed = 1',
+          args: [userId],
+        });
+    const lessons = result.rows.map((r: any) => r.lesson_id);
+    return res.json({ success: true, completedLessons: lessons });
+  } catch (err: any) {
+    console.error('Error fetching completed lessons:', err);
     return res.status(500).json({ error: err.message });
   }
 });

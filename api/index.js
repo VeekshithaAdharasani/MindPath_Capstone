@@ -431,6 +431,57 @@ async function initDatabase() {
     await client.execute(`
       CREATE INDEX IF NOT EXISTS idx_uploaded_files_user ON uploaded_files(user_id, created_at DESC);
     `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS course_enrollments (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        course_id TEXT NOT NULL,
+        course_title TEXT NOT NULL,
+        source TEXT NOT NULL,
+        progress INTEGER DEFAULT 0,
+        enrolled_at INTEGER NOT NULL,
+        completed_at INTEGER
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS user_course_lessons (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        course_id TEXT NOT NULL,
+        lesson_id TEXT NOT NULL,
+        lesson_title TEXT NOT NULL,
+        video_url TEXT,
+        video_source TEXT,
+        completed INTEGER DEFAULT 0,
+        completed_at INTEGER
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS generated_career_paths (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        goal TEXT NOT NULL,
+        path_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS search_cache (
+        query TEXT PRIMARY KEY,
+        results_json TEXT NOT NULL,
+        cached_at INTEGER NOT NULL,
+        ttl_ms INTEGER NOT NULL DEFAULT 86400000
+      );
+    `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_course_enrollments_user ON course_enrollments(user_id);
+    `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_user_course_lessons_user ON user_course_lessons(user_id, course_id);
+    `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_generated_career_paths_user ON generated_career_paths(user_id);
+    `);
     console.log("\u2705 Turso Database schema verified (zero mock data seeded).");
   } catch (err) {
     console.error("Database init error:", err?.message || err);
@@ -930,6 +981,496 @@ graph TD
   Step2 --> Step3[Benchmark Time & Space Complexity]
   Step3 --> Done[Implement Verified Solution]
 \`\`\``;
+}
+
+// src/lib/services/arxiv.ts
+async function searchArxivPapers(query, maxResults = 10) {
+  try {
+    const res = await fetch(
+      `http://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}&max_results=${maxResults}`,
+      { signal: AbortSignal.timeout(1e4) }
+    );
+    const text2 = await res.text();
+    const entries = text2.split("<entry>").slice(1);
+    return entries.map((entry) => {
+      const titleMatch = entry.match(/<title>(.*?)<\/title>/s);
+      const idMatch = entry.match(/<id>(.*?)<\/id>/);
+      const summaryMatch = entry.match(/<summary>(.*?)<\/summary>/s);
+      return {
+        id: `arxiv-${idMatch?.[1]?.split("/abs/").pop() || "unknown"}`,
+        title: titleMatch?.[1]?.replace(/\s+/g, " ").trim() || "Untitled Paper",
+        description: summaryMatch?.[1]?.replace(/\s+/g, " ").trim() || "",
+        url: idMatch?.[1] || "",
+        source: "arxiv"
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/services/crossref.ts
+async function searchCrossrefWorks(query, rows = 10) {
+  try {
+    const res = await fetch(
+      `https://api.crossref.org/works?query=${encodeURIComponent(query)}&rows=${rows}&select=title,author,URL,published`,
+      { signal: AbortSignal.timeout(1e4) }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.message?.items || []).map((item) => ({
+      id: `cr-${item.URL}`,
+      title: item.title?.[0] || "Untitled",
+      description: item.author?.[0]?.family ? `By ${item.author.family}` : "",
+      url: item.URL,
+      source: "crossref"
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/services/github.ts
+async function searchGitHubCourses(query, perPage = 10) {
+  try {
+    const res = await fetch(
+      `https://api.github.com/search/repositories?q=${encodeURIComponent(`${query} tutorial course`)}&per_page=${perPage}&sort=stars`,
+      { headers: { Accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(1e4) }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.items || []).map((repo) => ({
+      id: `gh-${repo.id}`,
+      title: repo.name,
+      description: repo.description,
+      url: repo.html_url,
+      stars: repo.stargazers_count,
+      language: repo.language,
+      source: "github"
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/services/internet-archive.ts
+async function searchArchiveVideos(query, rows = 10) {
+  try {
+    const res = await fetch(
+      `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=title,identifier,description&rows=${rows}&output=json`,
+      { signal: AbortSignal.timeout(1e4) }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.response?.docs || []).map((doc) => ({
+      id: doc.identifier,
+      title: doc.title || "Untitled",
+      channel: "Internet Archive",
+      url: `https://archive.org/details/${doc.identifier}`,
+      description: doc.description,
+      source: "archive"
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/services/mit-ocw.ts
+async function searchMitOcw(query, limit = 10) {
+  try {
+    const res = await fetch(
+      `https://ocw.mit.edu/search/?q=${encodeURIComponent(query)}`,
+      { signal: AbortSignal.timeout(1e4) }
+    );
+    if (!res.ok) return [];
+    const html = await res.text();
+    const courses = [];
+    const courseRegex = /<a[^>]*href="([^"]*\/courses\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+    let match = courseRegex.exec(html);
+    let count = 0;
+    while (match !== null && count < limit) {
+      const url = match[1].startsWith("http") ? match[1] : `https://ocw.mit.edu${match[1]}`;
+      const title = match[2].replace(/<[^>]*>/g, "").trim();
+      if (title && url) {
+        courses.push({
+          id: `mit-${url.split("/").pop()}`,
+          title: title || "MIT OCW Course",
+          description: "MIT OpenCourseWare - Free course materials",
+          url,
+          source: "mit-ocw",
+          type: "course"
+        });
+        count++;
+      }
+      match = courseRegex.exec(html);
+    }
+    return courses;
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/services/open-edx.ts
+async function searchOpenEdx(query, limit = 10) {
+  try {
+    const res = await fetch(
+      `https://courses.edx.org/api/courses/v1/courses/?search=${encodeURIComponent(query)}&page_size=${limit}`,
+      { signal: AbortSignal.timeout(1e4) }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.results || []).map((course) => ({
+      id: `edx-${course.id || course.course_id}`,
+      title: course.title || "Untitled Course",
+      description: course.short_description || course.description || "",
+      url: `https://courses.edx.org/courses/${course.id || course.course_id}`,
+      source: "open-edx",
+      type: "course"
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/services/open-stax.ts
+async function searchOpenStax(query, limit = 10) {
+  try {
+    const res = await fetch(
+      `https://openstax.org/subjects?q=${encodeURIComponent(query)}`,
+      { signal: AbortSignal.timeout(1e4) }
+    );
+    if (!res.ok) return [];
+    const html = await res.text();
+    const books = [];
+    const bookRegex = /<a[^>]*href="([^"]*\/books\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+    let match = bookRegex.exec(html);
+    let count = 0;
+    while (match !== null && count < limit) {
+      const url = match[1].startsWith("http") ? match[1] : `https://openstax.org${match[1]}`;
+      const title = match[2].replace(/<[^>]*>/g, "").trim();
+      if (title && url) {
+        books.push({
+          id: `openstax-${url.split("/").pop()}`,
+          title: title || "OpenStax Textbook",
+          description: "OpenStax - Free peer-reviewed textbook",
+          url,
+          source: "openstax",
+          type: "course"
+        });
+        count++;
+      }
+      match = bookRegex.exec(html);
+    }
+    return books;
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/services/openalex.ts
+async function searchOpenAlexWorks(query, perPage = 10) {
+  try {
+    const res = await fetch(
+      `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=${perPage}&mailto=your@email.com`,
+      { signal: AbortSignal.timeout(1e4) }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.results || []).map((work) => ({
+      id: `oa-${work.id}`,
+      title: work.title,
+      description: `Cited by ${work.cited_by_count} works`,
+      url: work.primary_location?.landing_page_url || work.id,
+      source: "openalex"
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/services/wikimedia.ts
+async function searchWikipedia(query, limit = 5) {
+  try {
+    const res = await fetch(
+      `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=${limit}`,
+      { signal: AbortSignal.timeout(1e4) }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.query?.search || []).map((item) => ({
+      id: `wiki-${item.pageid}`,
+      title: item.title,
+      description: item.snippet.replace(/<[^>]*>/g, ""),
+      url: `https://en.wikipedia.org/wiki/${item.title.replace(/ /g, "_")}`,
+      source: "wikipedia"
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/services/youtube.ts
+async function searchYouTubeVideos(query, maxResults = 10) {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) return [];
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&maxResults=${maxResults}&type=video&key=${apiKey}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.items || []).map((item) => ({
+      id: item.id.videoId,
+      title: item.snippet.title,
+      channel: item.snippet.channelTitle,
+      thumbnail: item.snippet.thumbnails?.medium?.url || "",
+      url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
+      source: "youtube",
+      description: item.snippet.description
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// src/lib/pipeline/course-pipeline.ts
+var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
+var searchCache = /* @__PURE__ */ new Map();
+function getCachedResults(query) {
+  const entry = searchCache.get(query.toLowerCase().trim());
+  if (!entry) return null;
+  if (Date.now() - entry.cachedAt > entry.ttlMs) {
+    searchCache.delete(query.toLowerCase().trim());
+    return null;
+  }
+  return entry.results;
+}
+function setCachedResults(query, results) {
+  searchCache.set(query.toLowerCase().trim(), {
+    query: query.toLowerCase().trim(),
+    results,
+    cachedAt: Date.now(),
+    ttlMs: CACHE_TTL_MS
+  });
+}
+async function searchAllSources(query, options) {
+  const maxPerSource = options?.maxPerSource || 5;
+  const useCache = options?.useCache !== false;
+  if (typeof window !== "undefined") {
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        includeVideos: String(options?.includeVideos !== false),
+        includeCourses: String(options?.includeCourses !== false),
+        includeLessons: String(options?.includeLessons === true),
+        maxPerSource: String(maxPerSource)
+      });
+      const res = await fetch(`/api/courses?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.results)) {
+          return data.results;
+        }
+      }
+    } catch (_err) {
+    }
+  }
+  const cached = useCache ? getCachedResults(query) : null;
+  if (cached) {
+    return cached;
+  }
+  const results = [];
+  if (options?.includeVideos !== false) {
+    const [youtube, archive] = await Promise.allSettled([
+      searchYouTubeVideos(query, maxPerSource),
+      searchArchiveVideos(query, maxPerSource)
+    ]);
+    if (youtube.status === "fulfilled")
+      results.push(...youtube.value.map((v) => ({
+        id: `yt-${v.id}`,
+        title: v.title,
+        description: v.description,
+        url: v.url,
+        source: "youtube",
+        type: "video",
+        duration: v.duration,
+        views: v.views,
+        thumbnail: v.thumbnail
+      })));
+    if (archive.status === "fulfilled")
+      results.push(...archive.value.map((v) => ({
+        id: `ia-${v.id}`,
+        title: v.title,
+        description: v.description,
+        url: v.url,
+        source: "archive",
+        type: "video"
+      })));
+  }
+  if (options?.includeCourses !== false) {
+    const [github, arxiv, crossref, openalex, mitOcw, openEdx, openStax] = await Promise.allSettled([
+      searchGitHubCourses(query, maxPerSource),
+      searchArxivPapers(query, maxPerSource),
+      searchCrossrefWorks(query, maxPerSource),
+      searchOpenAlexWorks(query, maxPerSource),
+      searchMitOcw(query, maxPerSource),
+      searchOpenEdx(query, maxPerSource),
+      searchOpenStax(query, maxPerSource)
+    ]);
+    if (github.status === "fulfilled")
+      results.push(...github.value.map((g) => ({
+        id: g.id,
+        title: g.title,
+        description: g.description,
+        url: g.url,
+        source: "github",
+        type: "course",
+        stars: g.stars,
+        language: g.language
+      })));
+    if (arxiv.status === "fulfilled")
+      results.push(...arxiv.value.map((a) => ({
+        id: a.id,
+        title: a.title,
+        description: a.description,
+        url: a.url,
+        source: "arxiv",
+        type: "lesson"
+      })));
+    if (crossref.status === "fulfilled")
+      results.push(...crossref.value.map((c) => ({
+        id: c.id,
+        title: c.title,
+        description: c.description,
+        url: c.url,
+        source: "crossref",
+        type: "lesson"
+      })));
+    if (openalex.status === "fulfilled")
+      results.push(...openalex.value.map((o) => ({
+        id: o.id,
+        title: o.title,
+        description: o.description,
+        url: o.url,
+        source: "openalex",
+        type: "lesson"
+      })));
+    if (mitOcw.status === "fulfilled")
+      results.push(...mitOcw.value.map((m) => ({
+        id: m.id,
+        title: m.title,
+        description: m.description,
+        url: m.url,
+        source: "mit-ocw",
+        type: "course"
+      })));
+    if (openEdx.status === "fulfilled")
+      results.push(...openEdx.value.map((e) => ({
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        url: e.url,
+        source: "open-edx",
+        type: "course"
+      })));
+    if (openStax.status === "fulfilled")
+      results.push(...openStax.value.map((s) => ({
+        id: s.id,
+        title: s.title,
+        description: s.description,
+        url: s.url,
+        source: "openstax",
+        type: "course"
+      })));
+  }
+  if (options?.includeLessons !== false) {
+    const wiki = await searchWikipedia(query, maxPerSource);
+    results.push(...wiki.map((w) => ({
+      id: w.id,
+      title: w.title,
+      description: w.description,
+      url: w.url,
+      source: "wikipedia",
+      type: "lesson"
+    })));
+  }
+  if (useCache) {
+    setCachedResults(query, results);
+  }
+  return results;
+}
+
+// src/lib/services/enzonic-ai.ts
+import OpenAI2 from "openai";
+var enzonicAI = new OpenAI2({
+  baseURL: process.env.ENZONIC_ROTATOR_URL || "http://sgp-two.enzonic.com:25836/v1",
+  apiKey: process.env.ENZONIC_API_KEY || "dummy-key-for-sdk",
+  maxRetries: 0
+});
+var ENZONIC_MODEL2 = process.env.ENZONIC_MODEL || "nvidia/nemotron-3-ultra-550b-a55b";
+async function generateCareerPath(userGoal) {
+  if (typeof window !== "undefined") {
+    const res = await fetch("/api/career/path", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goal: userGoal })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return data.path;
+  }
+  const completion = await enzonicAI.chat.completions.create({
+    model: ENZONIC_MODEL2,
+    messages: [
+      {
+        role: "system",
+        content: `You are an AI career counselor. Create a structured learning path with exactly 6 levels:
+        Level 1: Absolute Beginner
+        Level 2: Core Fundamentals
+        Level 3: Intermediate
+        Level 4: Advanced
+        Level 5: Real Projects
+        Level 6: Career Ready
+        
+        For each level provide: title, lessons (5-8 per level), skills gained, and estimated weeks.
+        Output as JSON only with keys: career, milestones (array of {title, topics: string[], estimatedWeeks}), gaps (string[]).`
+      },
+      { role: "user", content: `Create a complete learning path for: ${userGoal}` }
+    ],
+    max_tokens: 4096,
+    temperature: 0.3,
+    response_format: { type: "json_object" }
+  });
+  const content = completion.choices[0]?.message?.content || "{}";
+  return JSON.parse(content);
+}
+async function generateQuiz(topic, level, numQuestions = 10) {
+  if (typeof window !== "undefined") {
+    const res = await fetch("/api/quiz/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic, level, numQuestions })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return data.quiz;
+  }
+  const completion = await enzonicAI.chat.completions.create({
+    model: ENZONIC_MODEL2,
+    messages: [
+      {
+        role: "system",
+        content: `Generate ${numQuestions} multiple choice quiz questions for "${topic}" at ${level} level.
+        Output as JSON only with keys: title, topic, questions (array of {question, options: string[4], correctIndex: number, explanation}).`
+      },
+      { role: "user", content: `Generate quiz questions for: ${topic}` }
+    ],
+    max_tokens: 4096,
+    temperature: 0.3,
+    response_format: { type: "json_object" }
+  });
+  const content = completion.choices[0]?.message?.content || "{}";
+  return JSON.parse(content);
 }
 
 // src/lib/storage/r2.ts
@@ -2331,6 +2872,149 @@ Analyze this option and return JSON matching:
       ]
     });
   } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.get("/api/courses", async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "Query required" });
+  const includeVideos = req.query.includeVideos !== void 0 ? req.query.includeVideos === "true" : true;
+  const includeCourses = req.query.includeCourses !== void 0 ? req.query.includeCourses === "true" : true;
+  const includeLessons = req.query.includeLessons !== void 0 ? req.query.includeLessons === "true" : false;
+  const maxPerSource = parseInt(req.query.maxPerSource, 10) || 10;
+  try {
+    const results = await searchAllSources(q, {
+      includeVideos,
+      includeCourses,
+      includeLessons,
+      maxPerSource,
+      useCache: true
+    });
+    return res.json({ success: true, query: q, results });
+  } catch (err) {
+    console.error("Course search error:", err);
+    return res.status(500).json({ error: err.message || "Course search failed" });
+  }
+});
+app.get("/api/videos", async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "Query required" });
+  try {
+    const results = await searchAllSources(q, {
+      includeVideos: true,
+      includeCourses: false,
+      includeLessons: false,
+      maxPerSource: 10,
+      useCache: true
+    });
+    return res.json({ success: true, query: q, results });
+  } catch (err) {
+    console.error("Video search error:", err);
+    return res.status(500).json({ error: err.message || "Video search failed" });
+  }
+});
+app.get("/api/lessons", async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "Query required" });
+  try {
+    const results = await searchAllSources(q, {
+      includeVideos: false,
+      includeCourses: false,
+      includeLessons: true,
+      maxPerSource: 10,
+      useCache: true
+    });
+    return res.json({ success: true, query: q, results });
+  } catch (err) {
+    console.error("Lesson search error:", err);
+    return res.status(500).json({ error: err.message || "Lesson search failed" });
+  }
+});
+app.post("/api/career/path", async (req, res) => {
+  const { goal } = req.body || {};
+  const userId = resolveUserId(req);
+  if (!goal) return res.status(400).json({ error: "Goal required" });
+  try {
+    const pathResult = await generateCareerPath(goal);
+    const id = `cp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    try {
+      await client.execute({
+        sql: "INSERT INTO generated_career_paths (id, user_id, goal, path_json, created_at) VALUES (?, ?, ?, ?, ?)",
+        args: [id, userId || "anonymous", goal, JSON.stringify(pathResult), Date.now()]
+      });
+    } catch (dbErr) {
+      console.warn("Could not persist career path to database:", dbErr);
+    }
+    return res.json({ success: true, path: pathResult, id });
+  } catch (err) {
+    console.error("Career path generation error:", err);
+    return res.status(500).json({ error: err.message || "Career path generation failed" });
+  }
+});
+app.post("/api/quiz/generate", async (req, res) => {
+  const { topic, level, numQuestions } = req.body || {};
+  if (!topic) return res.status(400).json({ error: "Topic required" });
+  try {
+    const quiz = await generateQuiz(topic, level || "intermediate", numQuestions || 10);
+    return res.json({ success: true, quiz });
+  } catch (err) {
+    console.error("Quiz generation error:", err);
+    return res.status(500).json({ error: err.message || "Quiz generation failed" });
+  }
+});
+app.post("/api/user_course_lessons", async (req, res) => {
+  const { courseId, lessonId, lessonTitle, videoUrl, videoSource, completed } = req.body || {};
+  const userId = resolveUserId(req);
+  if (!courseId || !lessonId) {
+    return res.status(400).json({ error: "courseId and lessonId required" });
+  }
+  const id = `ucl_${userId || "anon"}_${courseId}_${lessonId}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const isCompleted = completed ? 1 : 0;
+  const completedAt = isCompleted ? Date.now() : null;
+  try {
+    await client.execute({
+      sql: `INSERT INTO user_course_lessons (id, user_id, course_id, lesson_id, lesson_title, video_url, video_source, completed, completed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              completed = excluded.completed,
+              completed_at = excluded.completed_at,
+              lesson_title = excluded.lesson_title,
+              video_url = excluded.video_url,
+              video_source = excluded.video_source`,
+      args: [
+        id,
+        userId || "anonymous",
+        courseId,
+        lessonId,
+        lessonTitle || lessonId,
+        videoUrl || null,
+        videoSource || null,
+        isCompleted,
+        completedAt
+      ]
+    });
+    return res.json({ success: true, id, completed: isCompleted });
+  } catch (err) {
+    console.error("Error saving user course lesson:", err);
+    return res.status(500).json({ error: err.message || "Failed to save lesson progress" });
+  }
+});
+app.get("/api/user_course_lessons", async (req, res) => {
+  const userId = resolveUserId(req);
+  const courseId = req.query.courseId;
+  if (!userId) return res.json({ success: true, completedLessons: [] });
+  try {
+    const result = courseId ? await client.execute({
+      sql: "SELECT lesson_id, completed FROM user_course_lessons WHERE user_id = ? AND course_id = ? AND completed = 1",
+      args: [userId, courseId]
+    }) : await client.execute({
+      sql: "SELECT lesson_id, course_id, completed FROM user_course_lessons WHERE user_id = ? AND completed = 1",
+      args: [userId]
+    });
+    const lessons = result.rows.map((r) => r.lesson_id);
+    return res.json({ success: true, completedLessons: lessons });
+  } catch (err) {
+    console.error("Error fetching completed lessons:", err);
     return res.status(500).json({ error: err.message });
   }
 });

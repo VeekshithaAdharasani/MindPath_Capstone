@@ -55,7 +55,6 @@ export interface CareerMatch {
   matchScore: number;
   salary: string;
   scope: string;
-  growthTag: string;
   image: string;
   category: 'Tech' | 'Science' | 'Medicine' | 'Business' | 'Arts';
   description: string;
@@ -89,4 +88,102 @@ export interface WhatIfResult {
   tradeoffsAndRisks: string[];
   recommendedFirstStep: string;
   curatedRoadmap: string[];
+}
+
+// New types for live API data
+export interface CourseItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  category: string;
+  level?: string;
+  rating?: number;
+  reviews?: number | string;
+  tag?: string;
+  tagColor?: string;
+  progress?: number;
+  duration?: string;
+  image?: string;
+  source:
+    | 'youtube'
+    | 'archive'
+    | 'github'
+    | 'arxiv'
+    | 'crossref'
+    | 'openalex'
+    | 'wikipedia'
+    | 'mit-ocw'
+    | 'open-edx'
+    | 'openstax';
+  url: string;
+  stars?: number;
+  language?: string;
+  modules?: CourseModule[];
+}
+
+export interface CourseModule {
+  id: string;
+  title: string;
+  lessons: LessonItem[];
+}
+
+export interface LessonItem {
+  id: string;
+  title: string;
+  duration?: string;
+  type: 'concept' | 'code' | 'project' | 'video';
+  summary?: string;
+  content?: string;
+  codeSnippet?: string;
+  keyTakeaway?: string;
+  videoUrl?: string;
+  videoSource?: 'youtube';
+}
+
+export interface UnifiedSearchResult {
+  id: string;
+  title: string;
+  description?: string;
+  url: string;
+  source:
+    | 'youtube'
+    | 'archive'
+    | 'github'
+    | 'arxiv'
+    | 'crossref'
+    | 'openalex'
+    | 'wikipedia'
+    | 'mit-ocw'
+    | 'open-edx'
+    | 'openstax';
+  type: 'video' | 'course' | 'lesson' | 'article';
+  duration?: number;
+  views?: number;
+  stars?: number;
+  language?: string;
+  thumbnail?: string;
+}
+
+export interface CareerPathPlan {
+  career: string;
+  milestones: Array<{
+    title: string;
+    topics: string[];
+    estimatedWeeks: number;
+  }>;
+  gaps: string[];
+}
+
+export interface GeneratedQuiz {
+  title: string;
+  topic: string;
+  questions: QuizQuestion[];
+}
+
+export interface CacheEntry {
+  query: string;
+  results: UnifiedSearchResult[];
+  cachedAt: number;
+  ttlMs: number;
 }
