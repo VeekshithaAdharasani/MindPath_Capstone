@@ -32,8 +32,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = parseInt(process.env.PORT || '3000', 10);
 
-// Disable server identity header
+// Disable server identity header & trust Vercel/reverse proxy
 app.disable('x-powered-by');
+app.set('trust proxy', 1);
 
 // Enable Gzip/Deflate compression for fast loading of all JS, CSS, JSON, and HTML
 app.use(
@@ -70,6 +71,7 @@ const apiLimiter = rateLimit({
   max: 180,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
   message: { error: 'Too many requests, please try again in a minute.' },
 });
 
@@ -78,6 +80,7 @@ const aiLimiter = rateLimit({
   max: 45,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
   message: { error: 'AI rate limit reached. Please wait a few seconds before trying again.' },
 });
 
@@ -86,6 +89,7 @@ const storageLimiter = rateLimit({
   max: 15,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
   message: { error: 'File upload rate limit reached. Please try again shortly.' },
 });
 

@@ -1,10 +1,23 @@
 import OpenAI from 'openai';
 
-export const enzonicAI = new OpenAI({
-  baseURL: process.env.ENZONIC_ROTATOR_URL || 'http://sgp-two.enzonic.com:25836/v1',
-  apiKey: process.env.ENZONIC_API_KEY || 'dummy-key-for-sdk',
-  maxRetries: 0,
-});
+let _enzonicAI: OpenAI | null = null;
+export function getEnzonicAI(): OpenAI {
+  if (!_enzonicAI) {
+    _enzonicAI = new OpenAI({
+      baseURL: (typeof process !== 'undefined' && process.env?.ENZONIC_ROTATOR_URL) || 'http://sgp-two.enzonic.com:25836/v1',
+      apiKey: (typeof process !== 'undefined' && process.env?.ENZONIC_API_KEY) || 'dummy-key-for-sdk',
+      maxRetries: 0,
+      dangerouslyAllowBrowser: true,
+    });
+  }
+  return _enzonicAI;
+}
+
+export const enzonicAI = {
+  get chat() {
+    return getEnzonicAI().chat;
+  },
+};
 
 export const ENZONIC_MODEL = process.env.ENZONIC_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b';
 

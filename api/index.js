@@ -24,6 +24,7 @@ var enzonic = new OpenAI({
   apiKey: process.env.ENZONIC_API_KEY || "dummy-key-for-sdk",
   maxRetries: 0,
   // rotator handles retries across keys
+  dangerouslyAllowBrowser: true,
   defaultHeaders: {
     "x-app-source": "personalized-ai-companion"
   }
@@ -1411,11 +1412,23 @@ async function searchAllSources(query, options) {
 
 // src/lib/services/enzonic-ai.ts
 import OpenAI2 from "openai";
-var enzonicAI = new OpenAI2({
-  baseURL: process.env.ENZONIC_ROTATOR_URL || "http://sgp-two.enzonic.com:25836/v1",
-  apiKey: process.env.ENZONIC_API_KEY || "dummy-key-for-sdk",
-  maxRetries: 0
-});
+var _enzonicAI = null;
+function getEnzonicAI() {
+  if (!_enzonicAI) {
+    _enzonicAI = new OpenAI2({
+      baseURL: typeof process !== "undefined" && process.env?.ENZONIC_ROTATOR_URL || "http://sgp-two.enzonic.com:25836/v1",
+      apiKey: typeof process !== "undefined" && process.env?.ENZONIC_API_KEY || "dummy-key-for-sdk",
+      maxRetries: 0,
+      dangerouslyAllowBrowser: true
+    });
+  }
+  return _enzonicAI;
+}
+var enzonicAI = {
+  get chat() {
+    return getEnzonicAI().chat;
+  }
+};
 var ENZONIC_MODEL2 = process.env.ENZONIC_MODEL || "nvidia/nemotron-3-ultra-550b-a55b";
 async function generateCareerPath(userGoal) {
   if (typeof window !== "undefined") {
@@ -1518,6 +1531,7 @@ var __dirname = path.dirname(__filename);
 var app = express();
 var port = parseInt(process.env.PORT || "3000", 10);
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 app.use(
   compression({
     threshold: 512
@@ -1544,6 +1558,7 @@ var apiLimiter = rateLimit({
   max: 180,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
   message: { error: "Too many requests, please try again in a minute." }
 });
 var aiLimiter = rateLimit({
@@ -1551,6 +1566,7 @@ var aiLimiter = rateLimit({
   max: 45,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
   message: { error: "AI rate limit reached. Please wait a few seconds before trying again." }
 });
 var storageLimiter = rateLimit({
@@ -1558,6 +1574,7 @@ var storageLimiter = rateLimit({
   max: 15,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
   message: { error: "File upload rate limit reached. Please try again shortly." }
 });
 app.use("/api/", apiLimiter);
