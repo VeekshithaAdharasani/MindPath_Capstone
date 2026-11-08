@@ -19,6 +19,7 @@ export async function searchArchiveVideos(query: string, rows = 10): Promise<any
         url: `https://archive.org/details/${doc.identifier}`,
         description: doc.description,
         source: 'archive',
+        thumbnail: '/assets/extracted/course_cybersecurity.svg',
       }));
   } catch {
     return [];

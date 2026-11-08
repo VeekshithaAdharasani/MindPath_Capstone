@@ -27,6 +27,7 @@ export async function searchMitOcw(query: string, limit = 10): Promise<any[]> {
             url,
             source: 'mit-ocw' as const,
             type: 'course' as const,
+            thumbnail: '/assets/extracted/course_webdev.svg',
           });
         }
         match = regex.exec(html);

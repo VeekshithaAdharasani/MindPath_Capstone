@@ -18,6 +18,7 @@ export async function searchArxivPapers(query: string, maxResults = 10): Promise
         description: summaryMatch?.[1]?.replace(/\s+/g, ' ').trim() || '',
         url: idMatch?.[1] || '',
         source: 'arxiv' as const,
+        thumbnail: '/assets/extracted/course_ml.svg',
       };
     });
   } catch {

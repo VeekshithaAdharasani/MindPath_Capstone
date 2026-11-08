@@ -24,6 +24,7 @@ export async function searchCrossrefWorks(query: string, rows = 10): Promise<any
         description: item.author?.[0]?.family ? `By ${item.author.family}` : '',
         url: item.URL,
         source: 'crossref' as const,
+        thumbnail: '/assets/extracted/course_python.svg',
       }));
   } catch {
     return [];

@@ -14,6 +14,7 @@ export async function searchOpenEdx(query: string, limit = 10): Promise<any[]> {
       url: `https://courses.edx.org/courses/${course.id || course.course_id}`,
       source: 'open-edx' as const,
       type: 'course' as const,
+      thumbnail: '/assets/extracted/course_cloud.svg',
     }));
   } catch {
     return [];

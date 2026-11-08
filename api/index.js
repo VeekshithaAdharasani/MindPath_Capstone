@@ -1002,7 +1002,8 @@ async function searchArxivPapers(query, maxResults = 10) {
         title: titleMatch?.[1]?.replace(/\s+/g, " ").trim() || "Untitled Paper",
         description: summaryMatch?.[1]?.replace(/\s+/g, " ").trim() || "",
         url: idMatch?.[1] || "",
-        source: "arxiv"
+        source: "arxiv",
+        thumbnail: "/assets/extracted/course_ml.svg"
       };
     });
   } catch {
@@ -1028,7 +1029,8 @@ async function searchCrossrefWorks(query, rows = 10) {
       title: item.title?.[0] || "Untitled",
       description: item.author?.[0]?.family ? `By ${item.author.family}` : "",
       url: item.URL,
-      source: "crossref"
+      source: "crossref",
+      thumbnail: "/assets/extracted/course_python.svg"
     }));
   } catch {
     return [];
@@ -1036,6 +1038,10 @@ async function searchCrossrefWorks(query, rows = 10) {
 }
 
 // src/lib/services/github.ts
+function cleanText(str) {
+  if (!str) return "";
+  return str.replace(/<[^>]*>/g, "").replace(/&[a-z0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
+}
 async function searchGitHubCourses(query, perPage = 10) {
   try {
     const res = await fetch(
@@ -1044,15 +1050,24 @@ async function searchGitHubCourses(query, perPage = 10) {
     );
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.items || []).map((repo) => ({
-      id: `gh-${repo.id}`,
-      title: repo.name,
-      description: repo.description,
-      url: repo.html_url,
-      stars: repo.stargazers_count,
-      language: repo.language,
-      source: "github"
-    }));
+    return (data.items || []).filter((repo) => {
+      const name = (repo.name || "").toLowerCase();
+      const desc = (repo.description || "").toLowerCase();
+      return name.length > 2 && name !== "ok-" && !name.includes("<html") && !desc.includes("<html") && !desc.includes("<script");
+    }).map((repo) => {
+      const formattedTitle = repo.name.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+      const cleanedDesc = cleanText(repo.description);
+      return {
+        id: `gh-${repo.id}`,
+        title: formattedTitle,
+        description: cleanedDesc || `${formattedTitle} - Open source learning materials and practical labs on GitHub.`,
+        url: repo.html_url,
+        stars: repo.stargazers_count,
+        language: repo.language,
+        source: "github",
+        thumbnail: `https://opengraph.githubassets.com/1/${repo.full_name}`
+      };
+    });
   } catch {
     return [];
   }
@@ -1074,7 +1089,8 @@ async function searchArchiveVideos(query, rows = 10) {
       channel: "Internet Archive",
       url: `https://archive.org/details/${doc.identifier}`,
       description: doc.description,
-      source: "archive"
+      source: "archive",
+      thumbnail: "/assets/extracted/course_cybersecurity.svg"
     }));
   } catch {
     return [];
@@ -1107,7 +1123,8 @@ async function searchMitOcw(query, limit = 10) {
             description: "MIT OpenCourseWare - Free course materials",
             url,
             source: "mit-ocw",
-            type: "course"
+            type: "course",
+            thumbnail: "/assets/extracted/course_webdev.svg"
           });
         }
         match = regex.exec(html);
@@ -1134,7 +1151,8 @@ async function searchOpenEdx(query, limit = 10) {
       description: course.short_description || course.description || "",
       url: `https://courses.edx.org/courses/${course.id || course.course_id}`,
       source: "open-edx",
-      type: "course"
+      type: "course",
+      thumbnail: "/assets/extracted/course_cloud.svg"
     }));
   } catch {
     return [];
@@ -1164,7 +1182,8 @@ async function searchOpenStax(query, limit = 10) {
           description: "OpenStax - Free peer-reviewed textbook",
           url,
           source: "openstax",
-          type: "course"
+          type: "course",
+          thumbnail: "/assets/extracted/course_softskills.svg"
         });
         count++;
       }
@@ -1187,10 +1206,11 @@ async function searchOpenAlexWorks(query, perPage = 10) {
     const data = await res.json();
     return (data.results || []).map((work) => ({
       id: `oa-${work.id}`,
-      title: work.title,
-      description: `Cited by ${work.cited_by_count} works`,
+      title: work.title || "Academic Research Work",
+      description: `Peer-reviewed academic research \u2022 Cited by ${work.cited_by_count || 0} scholarly works`,
       url: work.primary_location?.landing_page_url || work.id,
-      source: "openalex"
+      source: "openalex",
+      thumbnail: "/assets/extracted/course_datascience.svg"
     }));
   } catch {
     return [];
@@ -1244,6 +1264,32 @@ async function searchYouTubeVideos(query, maxResults = 10) {
 }
 
 // src/lib/pipeline/course-pipeline.ts
+function cleanText2(str) {
+  if (!str) return "";
+  return str.replace(/<[^>]*>/g, "").replace(/&[a-z0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
+}
+function getDefaultThumbnail(source) {
+  switch (source) {
+    case "youtube":
+      return "/assets/extracted/course_webdev.svg";
+    case "github":
+      return "/assets/extracted/course_webdev.svg";
+    case "arxiv":
+      return "/assets/extracted/course_ml.svg";
+    case "crossref":
+      return "/assets/extracted/course_python.svg";
+    case "openalex":
+      return "/assets/extracted/course_datascience.svg";
+    case "mit-ocw":
+      return "/assets/extracted/course_cloud.svg";
+    case "open-edx":
+      return "/assets/extracted/course_cybersecurity.svg";
+    case "openstax":
+      return "/assets/extracted/course_softskills.svg";
+    default:
+      return "/assets/extracted/course_default.svg";
+  }
+}
 var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
 var searchCache = /* @__PURE__ */ new Map();
 function getCachedResults(query) {
@@ -1310,11 +1356,12 @@ async function searchAllSources(query, options) {
     if (archive.status === "fulfilled")
       results.push(...archive.value.map((v) => ({
         id: `ia-${v.id}`,
-        title: v.title,
-        description: v.description,
+        title: cleanText2(v.title),
+        description: cleanText2(v.description) || "Archived educational video lecture",
         url: v.url,
         source: "archive",
-        type: "video"
+        type: "video",
+        thumbnail: v.thumbnail || getDefaultThumbnail("archive")
       })));
   }
   if (options?.includeCourses !== false) {
@@ -1330,78 +1377,86 @@ async function searchAllSources(query, options) {
     if (github.status === "fulfilled")
       results.push(...github.value.map((g) => ({
         id: g.id,
-        title: g.title,
-        description: g.description,
+        title: cleanText2(g.title),
+        description: cleanText2(g.description),
         url: g.url,
         source: "github",
         type: "course",
         stars: g.stars,
-        language: g.language
+        language: g.language,
+        thumbnail: g.thumbnail || getDefaultThumbnail("github")
       })));
     if (arxiv.status === "fulfilled")
       results.push(...arxiv.value.map((a) => ({
         id: a.id,
-        title: a.title,
-        description: a.description,
+        title: cleanText2(a.title),
+        description: cleanText2(a.description),
         url: a.url,
         source: "arxiv",
-        type: "lesson"
+        type: "lesson",
+        thumbnail: a.thumbnail || getDefaultThumbnail("arxiv")
       })));
     if (crossref.status === "fulfilled")
       results.push(...crossref.value.map((c) => ({
         id: c.id,
-        title: c.title,
-        description: c.description,
+        title: cleanText2(c.title),
+        description: cleanText2(c.description),
         url: c.url,
         source: "crossref",
-        type: "lesson"
+        type: "lesson",
+        thumbnail: c.thumbnail || getDefaultThumbnail("crossref")
       })));
     if (openalex.status === "fulfilled")
       results.push(...openalex.value.map((o) => ({
         id: o.id,
-        title: o.title,
-        description: o.description,
+        title: cleanText2(o.title),
+        description: cleanText2(o.description),
         url: o.url,
         source: "openalex",
-        type: "lesson"
+        type: "lesson",
+        thumbnail: o.thumbnail || getDefaultThumbnail("openalex")
       })));
     if (mitOcw.status === "fulfilled")
       results.push(...mitOcw.value.map((m) => ({
         id: m.id,
-        title: m.title,
-        description: m.description,
+        title: cleanText2(m.title),
+        description: cleanText2(m.description),
         url: m.url,
         source: "mit-ocw",
-        type: "course"
+        type: "course",
+        thumbnail: m.thumbnail || getDefaultThumbnail("mit-ocw")
       })));
     if (openEdx.status === "fulfilled")
       results.push(...openEdx.value.map((e) => ({
         id: e.id,
-        title: e.title,
-        description: e.description,
+        title: cleanText2(e.title),
+        description: cleanText2(e.description),
         url: e.url,
         source: "open-edx",
-        type: "course"
+        type: "course",
+        thumbnail: e.thumbnail || getDefaultThumbnail("open-edx")
       })));
     if (openStax.status === "fulfilled")
       results.push(...openStax.value.map((s) => ({
         id: s.id,
-        title: s.title,
-        description: s.description,
+        title: cleanText2(s.title),
+        description: cleanText2(s.description),
         url: s.url,
         source: "openstax",
-        type: "course"
+        type: "course",
+        thumbnail: s.thumbnail || getDefaultThumbnail("openstax")
       })));
   }
   if (options?.includeLessons !== false) {
     const wiki = await searchWikipedia(query, maxPerSource);
     results.push(...wiki.map((w) => ({
       id: w.id,
-      title: w.title,
-      description: w.description,
+      title: cleanText2(w.title),
+      description: cleanText2(w.description),
       url: w.url,
       source: "wikipedia",
-      type: "lesson"
+      type: "lesson",
+      thumbnail: getDefaultThumbnail("wikipedia")
     })));
   }
   if (useCache) {

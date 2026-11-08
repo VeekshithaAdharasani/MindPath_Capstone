@@ -75,37 +75,71 @@ export const LearningView: React.FC<LearningViewProps> = ({
     setLoading(true);
     setError(null);
     try {
-      // Search for courses based on user interest
+      // Search for courses based on user interest across all verified sources (including YouTube)
       const query = user?.careerInterest || 'programming course';
       const results = await searchAllSources(query, {
-        includeVideos: false,
+        includeVideos: true,
         includeCourses: true,
-        includeLessons: false,
-        maxPerSource: 12,
+        includeLessons: true,
+        maxPerSource: 10,
       });
 
-      // Convert unified results to CourseItem format
+      // Convert unified results to CourseItem format with clean titles and robust thumbnails
       const courseItems: CourseItem[] = results
-        .filter((r) => r.type === 'course' || r.type === 'lesson')
-        .map((r) => ({
-          id: r.id,
-          title: r.title,
-          subtitle: r.description?.slice(0, 80) || '',
-          description: r.description || '',
-          category: activeTab === 'All Courses' ? 'General' : activeTab,
-          level: 'Intermediate',
-          rating: 4.5,
-          reviews: '1k+',
-          duration: 'Self-paced',
-          image: r.thumbnail || '/assets/extracted/course_default.svg',
-          tag: r.source.toUpperCase(),
-          tagColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-          source: r.source,
-          url: r.url,
-          stars: r.stars,
-          language: r.language,
-          modules: [],
-        }));
+        .filter((r) => {
+          const t = (r.title || '').trim();
+          const d = (r.description || '').trim();
+          return (
+            t.length > 2 &&
+            t.toLowerCase() !== 'ok-' &&
+            !t.toLowerCase().includes('<html') &&
+            !d.toLowerCase().includes('<html') &&
+            !d.toLowerCase().includes('<script')
+          );
+        })
+        .map((r) => {
+          const cleanDesc = (r.description || '')
+            .replace(/<[^>]*>/g, '')
+            .replace(/&[a-z0-9]+;/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          const sourceTagColors: Record<string, string> = {
+            youtube: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+            github: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+            arxiv: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+            openalex: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+            'mit-ocw': 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+            'open-edx': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+            openstax: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+          };
+
+          return {
+            id: r.id,
+            title: r.title,
+            subtitle: cleanDesc.slice(0, 80) || '',
+            description: cleanDesc || `${r.title} - Complete curated educational curriculum.`,
+            category: activeTab === 'All Courses' ? 'General' : activeTab,
+            level: 'Intermediate',
+            rating: 4.8,
+            reviews: '1.2k+',
+            duration: r.duration ? `${Math.round(r.duration / 60)} min` : 'Self-paced',
+            image: r.thumbnail || '/assets/extracted/course_default.svg',
+            tag: r.source.toUpperCase(),
+            tagColor: sourceTagColors[r.source] || 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+            source: r.source,
+            url: r.url,
+            stars: r.stars,
+            language: r.language,
+            modules: [],
+          };
+        })
+        .sort((a, b) => {
+          // Prioritize YouTube video masterclasses & high-impact courses
+          if (a.source === 'youtube' && b.source !== 'youtube') return -1;
+          if (b.source === 'youtube' && a.source !== 'youtube') return 1;
+          return 0;
+        });
 
       setCourses(courseItems);
     } catch (err: any) {
@@ -196,6 +230,9 @@ export const LearningView: React.FC<LearningViewProps> = ({
                   <img
                     src={featuredCourse.image}
                     alt={featuredCourse.title}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/assets/extracted/course_default.svg';
+                    }}
                     draggable={false}
                     onDragStart={(e) => e.preventDefault()}
                     className="absolute inset-0 w-full h-full object-cover object-right pointer-events-none select-none transition-transform duration-700 group-hover:scale-103"
@@ -298,6 +335,9 @@ export const LearningView: React.FC<LearningViewProps> = ({
                       <img
                         src={c.image}
                         alt={c.title}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = '/assets/extracted/course_default.svg';
+                        }}
                         draggable={false}
                         onDragStart={(e) => e.preventDefault()}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none select-none"

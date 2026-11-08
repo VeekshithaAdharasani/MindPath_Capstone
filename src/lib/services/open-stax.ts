@@ -23,6 +23,7 @@ export async function searchOpenStax(query: string, limit = 10): Promise<any[]> 
           url,
           source: 'openstax' as const,
           type: 'course' as const,
+          thumbnail: '/assets/extracted/course_softskills.svg',
         });
         count++;
       }
