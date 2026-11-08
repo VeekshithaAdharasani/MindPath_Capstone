@@ -5,6 +5,7 @@ import { QuizTest } from '../../types/index.ts';
 
 interface QuizModalProps {
   quiz: QuizTest | null;
+  userId?: string;
   isOpen: boolean;
   onClose: () => void;
   onQuizCompleted: (score: number, total: number, weakAreas: string[]) => void;
@@ -12,6 +13,7 @@ interface QuizModalProps {
 
 export const QuizModal: React.FC<QuizModalProps> = ({
   quiz,
+  userId,
   isOpen,
   onClose,
   onQuizCompleted,
@@ -82,15 +84,19 @@ export const QuizModal: React.FC<QuizModalProps> = ({
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
       }
 
-      // Persist to Turso
+      // Persist to Turso Cloud DB with user attribution
       try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (userId) headers['x-user-id'] = userId;
+
         await fetch('/api/quizzes/attempt', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
+            userId,
             quizTitle: quiz.title,
             category: quiz.category,
-            score: finalScore,
+            score: Math.round(pct),
             totalQuestions: total,
             weakTopics: pct < 75 ? [quiz.title] : [],
           }),

@@ -173,6 +173,14 @@ export const QuizView: React.FC<QuizViewProps> = ({
     return quizzes.filter((q) => q.category === activeTab);
   }, [activeTab, user?.careerInterest, quizzes]);
 
+  const effectiveTestsTaken = Math.max(testsTaken, attempts.length);
+  const effectiveBestScore = attempts.length > 0
+    ? Math.max(...attempts.map((a) => Number(a.score) || 0), bestScore || 0)
+    : (bestScore || 0);
+  const effectiveAvgScore = attempts.length > 0
+    ? Math.round(attempts.reduce((sum, a) => sum + (Number(a.score) || 0), 0) / attempts.length)
+    : (averageScore || 0);
+
   const trackLabel = user?.careerInterest ? `My Track (${user.careerInterest.split(',')[0].trim()})` : 'My Track';
   const tabs = [
     { id: 'My Track', label: trackLabel },
@@ -216,7 +224,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
             <div>
               <p className="text-[10px] text-slate-400 font-semibold uppercase">Your Best Score</p>
               <p className="text-sm font-extrabold text-white">
-                {testsTaken > 0 ? `${bestScore}%` : '--'}
+                {effectiveTestsTaken > 0 ? `${effectiveBestScore}%` : '--'}
               </p>
             </div>
           </div>
@@ -378,55 +386,80 @@ export const QuizView: React.FC<QuizViewProps> = ({
                       </button>
                     </div>
                   ) : filteredQuizzes.length > 0 ? (
-                    filteredQuizzes.map((q) => (
-                      <div
-                        key={q.id}
-                        className="rounded-3xl bg-[#14172f] border border-white/10 overflow-hidden flex flex-col justify-between hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 transition-all group select-none"
-                      >
-                        <div>
-                          {q.image && (
-                            <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#0d1024]">
-                              <img
-                                src={q.image}
-                                alt={q.title}
-                                draggable={false}
-                                onDragStart={(e) => e.preventDefault()}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none select-none"
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-[#14172f] via-transparent to-transparent pointer-events-none" />
-                              <div className="absolute top-3 left-3">
-                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 backdrop-blur-md">
-                                  {q.category}
-                                </span>
+                    filteredQuizzes.map((q) => {
+                      const pastAttempt = attempts.find(
+                        (a) => a.quiz_title.toLowerCase().trim() === q.title.toLowerCase().trim()
+                      );
+                      const isCompleted = !!pastAttempt;
+
+                      return (
+                        <div
+                          key={q.id}
+                          className="rounded-3xl bg-[#14172f] border border-white/10 overflow-hidden flex flex-col justify-between hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 transition-all group select-none"
+                        >
+                          <div>
+                            {q.image && (
+                              <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#0d1024]">
+                                <img
+                                  src={q.image}
+                                  alt={q.title}
+                                  draggable={false}
+                                  onDragStart={(e) => e.preventDefault()}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none select-none"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#14172f] via-transparent to-transparent pointer-events-none" />
+                                <div className="absolute top-3 left-3 flex items-center gap-2">
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 backdrop-blur-md">
+                                    {q.category}
+                                  </span>
+                                </div>
+                                {isCompleted && (
+                                  <div className="absolute top-3 right-3">
+                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 backdrop-blur-md flex items-center gap-1 shadow-sm">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                      <span>Completed • {pastAttempt.score}%</span>
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="absolute bottom-2.5 right-3 text-[10px] font-semibold text-slate-300 bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                                  {q.durationMinutes} min
+                                </div>
                               </div>
-                              <div className="absolute bottom-2.5 right-3 text-[10px] font-semibold text-slate-300 bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                                {q.durationMinutes} min
-                              </div>
+                            )}
+                            <div className="p-5">
+                              <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors leading-snug">
+                                {q.title}
+                              </h3>
+                              <p className="text-xs text-slate-400 mt-1">
+                                {q.questionsCount} Live AI Formulated Questions • Timed Diagnostic
+                              </p>
+                              {isCompleted && (
+                                <p className="text-[11px] text-emerald-400/90 font-medium mt-2 flex items-center gap-1">
+                                  <span>Latest Score: {pastAttempt.score}%</span>
+                                  {pastAttempt.score >= 80 && <span>🌟 Excellent</span>}
+                                </p>
+                              )}
                             </div>
-                          )}
-                          <div className="p-5">
-                            <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors leading-snug">
-                              {q.title}
-                            </h3>
-                            <p className="text-xs text-slate-400 mt-1">
-                              {q.questionsCount} Live AI Formulated Questions • Timed Diagnostic
-                            </p>
+                          </div>
+                          <div className="px-5 pb-5 pt-2 border-t border-white/5 flex items-center justify-between">
+                            <span className="text-xs text-slate-400 font-medium">
+                              {isCompleted ? 'Completed' : 'Timed Challenge'}
+                            </span>
+                            <button
+                              onClick={() => onStartQuiz(q)}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer flex items-center gap-1.5 ${
+                                isCompleted
+                                  ? 'bg-white/10 hover:bg-white/15 border border-white/15 hover:border-purple-400/50'
+                                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500'
+                              }`}
+                            >
+                              <span>{isCompleted ? 'Retake Quiz' : 'Start Test'}</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
                           </div>
                         </div>
-                        <div className="px-5 pb-5 pt-2 border-t border-white/5 flex items-center justify-between">
-                          <span className="text-xs text-slate-400 font-medium">
-                            Timed Challenge
-                          </span>
-                          <button
-                            onClick={() => onStartQuiz(q)}
-                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-xs font-bold text-white transition-all shadow-md cursor-pointer flex items-center gap-1.5"
-                          >
-                            <span>Start Test</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="col-span-full p-8 text-center text-xs text-slate-400">
                       <p>No tests found for this tab.</p>
@@ -447,34 +480,34 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-4 rounded-2xl bg-[#181d3d] border border-white/5 flex items-center gap-4">
                     <span className="text-2xl font-extrabold text-emerald-400">
-                      {testsTaken > 0 ? `${bestScore}%` : '--'}
+                      {effectiveTestsTaken > 0 ? `${effectiveBestScore}%` : '--'}
                     </span>
                     <div>
                       <p className="text-xs font-bold text-white">Best Score</p>
                       <p className="text-[10px] text-slate-400">
-                        {testsTaken > 0 ? 'Highest achieved test score' : 'No tests taken yet'}
+                        {effectiveTestsTaken > 0 ? 'Highest achieved test score' : 'No tests taken yet'}
                       </p>
                     </div>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-[#181d3d] border border-white/5 flex items-center gap-4">
                     <span className="text-2xl font-extrabold text-indigo-400">
-                      {testsTaken > 0 ? `${averageScore}%` : '--'}
+                      {effectiveTestsTaken > 0 ? `${effectiveAvgScore}%` : '--'}
                     </span>
                     <div>
                       <p className="text-xs font-bold text-white">Average Score</p>
                       <p className="text-[10px] text-slate-400">
-                        {testsTaken > 0 ? 'Consistent performance' : 'Take tests to track accuracy'}
+                        {effectiveTestsTaken > 0 ? 'Consistent performance' : 'Take tests to track accuracy'}
                       </p>
                     </div>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-[#181d3d] border border-white/5 flex items-center gap-4">
-                    <span className="text-2xl font-extrabold text-purple-400">{testsTaken}</span>
+                    <span className="text-2xl font-extrabold text-purple-400">{effectiveTestsTaken}</span>
                     <div>
                       <p className="text-xs font-bold text-white">Tests Taken</p>
                       <p className="text-[10px] text-slate-400">
-                        {testsTaken > 0 ? 'Total verified assessments' : '0 completed tests'}
+                        {effectiveTestsTaken > 0 ? 'Total verified assessments' : '0 completed tests'}
                       </p>
                     </div>
                   </div>

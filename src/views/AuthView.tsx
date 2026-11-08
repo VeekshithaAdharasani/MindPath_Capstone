@@ -17,8 +17,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthenticated, onClose }) 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [educationLevel, setEducationLevel] = useState('College Undergrad');
-  const [careerInterest, setCareerInterest] = useState('AI & Data Science');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,8 +59,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthenticated, onClose }) 
             name: name.trim(),
             email: email.trim(),
             password,
-            educationLevel,
-            careerInterest,
           }
         : { 
             email: email.trim(),
@@ -299,43 +295,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthenticated, onClose }) 
                 )}
 
                 {mode === 'register' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
-                        Education Level
-                      </label>
-                      <select
-                        value={educationLevel}
-                        onChange={(e) => setEducationLevel(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-[#181d3d] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
-                      >
-                        <option value="Class 10">Class 10</option>
-                        <option value="Class 11">Class 11</option>
-                        <option value="Class 12">Class 12</option>
-                        <option value="College Undergrad">College Undergrad</option>
-                        <option value="Graduate / Post-Grad">Graduate / Post-Grad</option>
-                        <option value="Working Professional">Working Professional</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
-                        Career Interest
-                      </label>
-                      <select
-                        value={careerInterest}
-                        onChange={(e) => setCareerInterest(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-[#181d3d] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
-                      >
-                        <option value="AI & Data Science">AI & Data Science</option>
-                        <option value="Computer Science">Computer Science</option>
-                        <option value="Software Engineering">Software Engineering</option>
-                        <option value="Medicine & Healthcare">Medicine & Healthcare</option>
-                        <option value="Business & Finance">Business & Finance</option>
-                        <option value="General Science">General Science</option>
-                      </select>
-                    </div>
-                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Your education level, target exam, and career milestones will be configured in your AI Onboarding.
+                  </p>
                 )}
 
                 <button

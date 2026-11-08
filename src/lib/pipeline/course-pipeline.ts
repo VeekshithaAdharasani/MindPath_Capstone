@@ -62,11 +62,25 @@ export interface SearchCacheEntry {
 
 function cleanText(str?: string): string {
   if (!str) return '';
+  if (/<html|<script|<!doctype|<style/i.test(str)) {
+    return '';
+  }
   return str
     .replace(/<[^>]*>/g, '')
     .replace(/&[a-z0-9]+;/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function isValidCourseResult(item: UnifiedSearchResult): boolean {
+  const title = (item.title || '').trim();
+  const desc = (item.description || '').trim();
+  const lowerTitle = title.toLowerCase();
+
+  if (!title || title.length < 3) return false;
+  if (lowerTitle.startsWith('ok-') || lowerTitle === 'ok' || lowerTitle === 'untitled course' || lowerTitle.includes('untitled')) return false;
+  if (/<html|<script|<!doctype|<meta/i.test(title) || /<html|<script|<!doctype|<meta/i.test(desc)) return false;
+  return true;
 }
 
 function getDefaultThumbnail(source: string): string {
@@ -285,12 +299,15 @@ export async function searchAllSources(query: string, options?: {
     })));
   }
 
+  // Filter out any anomalous, malformed or empty items
+  const validResults = results.filter(isValidCourseResult);
+
   // Cache results
   if (useCache) {
-    setCachedResults(query, results);
+    setCachedResults(query, validResults);
   }
 
-  return results;
+  return validResults;
 }
 
 export { CACHE_TTL_MS, getCachedResults, setCachedResults };

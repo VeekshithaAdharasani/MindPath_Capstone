@@ -369,7 +369,7 @@ export default function App() {
   const overallProgress = tasks.length > 0 ? Math.round((goalsCompleted / tasks.length) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#0c0e1a] text-slate-100 flex flex-col font-sans selection:bg-purple-500/30">
+    <div className="h-screen overflow-hidden bg-[#0c0e1a] text-slate-100 flex flex-col font-sans selection:bg-purple-500/30">
       {/* Top Navbar */}
       <Navbar
         user={user}
@@ -383,7 +383,7 @@ export default function App() {
         onSignOut={handleSignOut}
       />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Navigation Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -528,6 +528,7 @@ export default function App() {
         {activeQuiz !== null && (
           <QuizModal
             quiz={activeQuiz}
+            userId={user?.id}
             isOpen={activeQuiz !== null}
             onClose={() => setActiveQuiz(null)}
             onQuizCompleted={handleQuizCompleted}
@@ -592,6 +593,12 @@ export default function App() {
               }
             }}
             userName={user.name}
+            userId={user?.id}
+            onProfileUpdated={(updated) => {
+              setUser(updated);
+              localStorage.setItem('mindpath_user', JSON.stringify(updated));
+              refreshUserData(updated.id);
+            }}
           />
         )}
       </Suspense>

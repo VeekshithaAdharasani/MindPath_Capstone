@@ -16,8 +16,6 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [educationLevel, setEducationLevel] = useState('Class 12');
-  const [careerInterest, setCareerInterest] = useState('Computer Science');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,8 +43,6 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
           name: name.trim(),
           email: email.trim(),
           password,
-          educationLevel,
-          careerInterest,
         }),
       });
 
@@ -147,44 +143,8 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
-                Education Level
-              </label>
-              <select
-                value={educationLevel}
-                onChange={(e) => setEducationLevel(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#181d3d] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
-              >
-                <option value="Class 10">Class 10</option>
-                <option value="Class 11">Class 11</option>
-                <option value="Class 12">Class 12</option>
-                <option value="College Undergrad">College Undergrad</option>
-                <option value="Graduate / Working">Graduate / Working</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
-                Career Interest
-              </label>
-              <select
-                value={careerInterest}
-                onChange={(e) => setCareerInterest(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#181d3d] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
-              >
-                <option value="Computer Science">Computer Science</option>
-                <option value="AI & Data Science">AI & Data Science</option>
-                <option value="Software Development">Software Development</option>
-                <option value="Medicine / Healthcare">Medicine / Healthcare</option>
-                <option value="Business & Finance">Business & Finance</option>
-              </select>
-            </div>
-          </div>
-
           <p className="text-[10px] text-slate-400">
-            Your account will be initialized with a fresh study streak and personalized goal tracking in MindPath Cloud.
+            Next, you'll configure your custom learning goals and dream career in our AI Onboarding setup.
           </p>
 
           <button

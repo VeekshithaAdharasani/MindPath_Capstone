@@ -40,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ] as const;
 
   const content = (
-    <aside className="w-60 min-h-[calc(100vh-4rem)] bg-[#0b0e1b] border-r border-white/5 flex flex-col justify-between p-3 shrink-0">
+    <aside className="w-60 h-full bg-[#0b0e1b] border-r border-white/5 flex flex-col justify-between p-3 shrink-0 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 select-none">
       {/* Navigation items list */}
       <nav className="space-y-1.5 pt-2">
         {navItems.map((item) => {
@@ -67,10 +67,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Dream Big Mountain Card - 4K HD Visual */}
+      {/* Dream Big Mountain Card - 4K HD Visual Fixed at Bottom */}
       <div 
         onDragStart={(e) => e.preventDefault()}
-        className="mt-4 pt-1 select-none"
+        className="mt-auto pt-3 select-none shrink-0 sticky bottom-0 bg-[#0b0e1b]"
       >
         <button
           onClick={() => onOpenCompanion()}
@@ -98,8 +98,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
-      <div className="hidden md:block shrink-0">
+      {/* Desktop Persistent Fixed Sidebar */}
+      <div className="hidden md:block shrink-0 h-full z-30 select-none">
         {content}
       </div>
 

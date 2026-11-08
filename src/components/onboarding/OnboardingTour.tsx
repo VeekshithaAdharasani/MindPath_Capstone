@@ -1,293 +1,369 @@
+import confetti from 'canvas-confetti';
 import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Compass,
   GraduationCap,
-  HelpCircle,
-  Home,
-  TrendingUp,
+  Loader2,
+  Sparkles,
   X,
 } from 'lucide-react';
 import React, { useState } from 'react';
-import { NavTab } from '../../types/index.ts';
+import { NavTab, UserProfile } from '../../types/index.ts';
 import { AILogo } from '../brand/AILogo.tsx';
-import { BrandLogo } from '../brand/BrandLogo.tsx';
 
 interface OnboardingTourProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (tab: NavTab) => void;
-  userName: string;
-}
-
-interface TourStep {
-  tab: NavTab;
-  badge: string;
-  title: string;
-  headline: string;
-  description: string;
-  features: string[];
-  icon: React.ReactNode;
-  accent: string;
+  userName?: string;
+  userId?: string;
+  onProfileUpdated?: (updated: UserProfile) => void;
 }
 
 export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   isOpen,
   onClose,
   onNavigate,
-  userName,
+  userName = '',
+  userId,
+  onProfileUpdated,
 }) => {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [step, setStep] = useState(1);
+  const [careerInterest, setCareerInterest] = useState('AI & Systems Engineering');
+  const [educationLevel, setEducationLevel] = useState('College Undergrad');
+  const [targetExam, setTargetExam] = useState('GATE 2026 / FAANG Placements');
+  const [loading, setLoading] = useState(false);
+  const [generationPhase, setGenerationPhase] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const displayName = userName ? userName.split(' ')[0] : 'Learner';
 
-  const steps: TourStep[] = [
-    {
-      tab: 'home',
-      badge: 'Welcome to MindPath',
-      title: `Welcome aboard, ${displayName}!`,
-      headline: 'Your Unified Academic & Career Growth Platform',
-      description:
-        'MindPath brings together real-time AI mentorship, verified progress tracking, curriculum roadmaps, and industry career intelligence into a single personalized workspace.',
-      features: [
-        'Personalized to your education level and career ambitions',
-        'Directly synced with MindPath Cloud Workspace',
-        'Authentic analytics directly derived from your actual study habits',
-      ],
-      icon: <BrandLogo size="lg" showText={false} />,
-      accent: 'from-purple-600 to-indigo-600',
-    },
-    {
-      tab: 'home',
-      badge: 'Home Dashboard',
-      title: 'Home: Daily Command Center',
-      headline: 'Study Streak Heatmap & Daily Milestones',
-      description:
-        'This is where you start every study session. Track your unbroken consecutive daily study streak, check off today\'s scheduled tasks, and monitor your radial progress ring.',
-      features: [
-        'Study Consistency Heatmap: Visual 16-week matrix recording daily focus time',
-        'Radial Progress Ring: Real-time completion rate derived from your tasks',
-        'Upcoming Tasks: Quick toggle checkboxes for your daily study commitments',
-      ],
-      icon: <Home className="w-6 h-6 text-indigo-400" />,
-      accent: 'from-indigo-600 to-cyan-500',
-    },
-    {
-      tab: 'career',
-      badge: 'Career Explorer',
-      title: 'Career Explorer: Discover Your Future',
-      headline: 'Market Trends, Skill Mappings & Salary Data',
-      description:
-        'This is where you explore high-growth careers. Compare market roles like AI & Data Scientist, Software Developer, and Medical Specialist with live salary benchmarks and required skill trees.',
-      features: [
-        'Interactive Career Matching: See skill fit scores based on your strengths',
-        'What-If Career Simulator: Test how new skills and certifications unlock higher salaries',
-        'Curated pathways with specific high-impact learning milestones',
-      ],
-      icon: <Compass className="w-6 h-6 text-cyan-400" />,
-      accent: 'from-cyan-600 to-blue-600',
-    },
-    {
-      tab: 'learning',
-      badge: 'Learning Hub',
-      title: 'Learning Hub: Curated Courses',
-      headline: 'Beginner-to-Advanced Structured Curriculum',
-      description:
-        'This is where you build genuine expertise. Browse top-rated courses spanning Python, Data Science, Machine Learning, and Career Readiness with estimated completion times.',
-      features: [
-        'Category Filtering: Instantly switch between AI, Development, and Career courses',
-        'Interactive Course Viewer: Review syllabus, module breakdowns, and instructor ratings',
-        'Streak extender: 30 minutes of daily learning keeps your flame burning',
-      ],
-      icon: <GraduationCap className="w-6 h-6 text-emerald-400" />,
-      accent: 'from-emerald-600 to-teal-600',
-    },
-    {
-      tab: 'quizzes',
-      badge: 'Quizzes & Tests',
-      title: 'Quizzes & Tests: Prove Your Mastery',
-      headline: 'Timed Subject Challenges & Verified Scorecards',
-      description:
-        'This is where you test your knowledge. Take timed mock exams in Mathematics & Calculus, Advanced Physics, and Logical Reasoning with instant answer validation.',
-      features: [
-        'Real-time timer & question navigation bar',
-        'Instant step-by-step mathematical explanations upon submission',
-        'Verified scoring: Your best and average test scores automatically update your profile',
-      ],
-      icon: <HelpCircle className="w-6 h-6 text-purple-400" />,
-      accent: 'from-purple-600 to-pink-600',
-    },
-    {
-      tab: 'home',
-      badge: 'MindPath Companion',
-      title: 'MindPath AI: 24/7 Intelligent Mentor',
-      headline: 'Powered by MindPath AI Companion with Live Tools',
-      description:
-        'This is your personal AI companion. Accessible anytime via the floating button or top navigation. Ask questions, clarify mathematical derivations, or plan your daily schedule.',
-      features: [
-        'Live Web Search: Up-to-the-minute 2026 exam news, industry trends, and salary intel',
-        'Zero-Eval Math Engine: Precise step-by-step algebraic and calculus evaluations',
-        'Knowledge Base Tool: Companion reads your live active tasks and streak to give contextual advice',
-      ],
-      icon: <AILogo size="lg" pulse={true} />,
-      accent: 'from-emerald-500 via-cyan-500 to-purple-600',
-    },
-    {
-      tab: 'reports',
-      badge: 'Progress & Reports',
-      title: 'Progress & Reports: Verified Analytics',
-      headline: 'Track Long-Term Growth & Export PDF Recaps',
-      description:
-        'This is where your achievements are documented. Review your performance summary across subjects, examine milestone completions, and download verified progress reports.',
-      features: [
-        'Subject breakdown bars for Math, Science, Programming, and General',
-        'One-click Printable / PDF Monthly Progress Report for mentors or parents',
-        'Milestone badges unlocked automatically as you hit study targets',
-      ],
-      icon: <TrendingUp className="w-6 h-6 text-amber-400" />,
-      accent: 'from-amber-600 to-orange-600',
-    },
+  const careerSuggestions = [
+    'AI & Systems Engineering',
+    'GATE CSE 2026',
+    'Full-Stack Web Dev',
+    'Cybersecurity Analyst',
+    'Data Scientist',
+    'Quantitative Developer',
+    'Cloud Architecture',
+    'Robotics & Embedded AI',
   ];
 
-  const step = steps[currentStep];
+  const educationSuggestions = [
+    'College Undergrad',
+    'B.Tech / B.E. (CS/IT)',
+    'Class 12 CBSE / State',
+    'Class 11 Science',
+    'Graduate / Working Professional',
+    'Self-Taught Developer',
+  ];
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      const nextIndex = currentStep + 1;
-      setCurrentStep(nextIndex);
-      onNavigate(steps[nextIndex].tab);
-    } else {
-      handleComplete();
+  const handleCompleteOnboarding = async () => {
+    setLoading(true);
+    setError(null);
+    setGenerationPhase('Analyzing career requirements & 2026 industry demand...');
+
+    const timer1 = setTimeout(() => {
+      setGenerationPhase('Synthesizing 6-level personalized career curriculum...');
+    }, 1200);
+
+    const timer2 = setTimeout(() => {
+      setGenerationPhase('Formulating initial diagnostic assessment & Turso tasks...');
+    }, 2400);
+
+    try {
+      const res = await fetch('/api/onboarding/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId || '',
+        },
+        body: JSON.stringify({
+          educationLevel: educationLevel.trim(),
+          careerInterest: careerInterest.trim(),
+          targetExam: targetExam.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to initialize customized career roadmap.');
+      }
+
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+
+      if (onProfileUpdated && data.user) {
+        onProfileUpdated(data.user);
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('mindpath:refresh-data'));
+      }
+
+      onClose();
+      onNavigate('home');
+    } catch (err: any) {
+      console.error('Onboarding setup error:', err);
+      setError(err?.message || 'Could not complete AI onboarding. Please retry.');
+    } finally {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      setLoading(false);
     }
-  };
-
-  const handlePrev = () => {
-    if (currentStep > 0) {
-      const prevIndex = currentStep - 1;
-      setCurrentStep(prevIndex);
-      onNavigate(steps[prevIndex].tab);
-    }
-  };
-
-  const handleComplete = () => {
-    localStorage.setItem('mindpath_onboarding_completed', 'true');
-    onClose();
-    onNavigate('home');
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none">
-      <div className="w-full max-w-xl bg-[#111428] border border-white/20 rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
-        {/* Top glowing ambient gradient bar */}
-        <div className={`h-1.5 w-full bg-gradient-to-r ${step.accent} transition-all duration-300`} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-xl bg-[#0c0e1e] border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200 overflow-hidden">
+        {/* Glow Accent Header */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-cyan-400 to-indigo-500" />
 
-        {/* Modal Header */}
-        <div className="p-5 sm:p-6 pb-2 flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${step.accent} p-[1.5px] shadow-lg shrink-0`}>
-              <div className="w-full h-full bg-[#0c0e1a] rounded-[14px] flex items-center justify-center">
-                {step.icon}
-              </div>
-            </div>
+        {/* Top Navbar */}
+        <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
+          <div className="flex items-center gap-2.5">
+            <AILogo size="sm" pulse={true} />
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-0.5 rounded-full inline-block mb-1">
-                {step.badge} • Step {currentStep + 1} of {steps.length}
-              </span>
-              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-snug">
-                {step.title}
-              </h2>
+              <h2 className="text-sm font-extrabold text-white">MindPath AI Setup</h2>
+              <p className="text-[10px] text-slate-400">Step {step} of 3 • Personalized AI Agent</p>
             </div>
           </div>
-
           <button
-            onClick={handleComplete}
-            className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
-            aria-label="Skip walkthrough"
+            onClick={onClose}
+            className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            aria-label="Close setup"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="px-5 sm:px-6 py-4 space-y-4">
-          <div>
-            <h3 className="text-sm font-bold text-indigo-200">
-              {step.headline}
-            </h3>
-            <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
-              {step.description}
-            </p>
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs">
+            {error}
           </div>
+        )}
 
-          {/* Key Features Callout Box */}
-          <div className="p-3.5 rounded-2xl bg-[#181d3d] border border-white/10 space-y-2">
-            <p className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
-              Key Capabilities:
+        {/* STEP 1: Dream Career Goal */}
+        {step === 1 && (
+          <div className="space-y-4 animate-in fade-in">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+              <Compass className="w-3.5 h-3.5 text-purple-400" />
+              <span>Step 1: Your North Star</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              What is your dream career goal, {displayName}?
+            </h1>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              MindPath AI dynamically constructs a verified 6-level career roadmap, active study tasks, and diagnostic quizzes tailored to this exact specialty.
             </p>
-            {step.features.map((feat, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-xs text-slate-200 leading-normal">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>{feat}</span>
-              </div>
-            ))}
-          </div>
 
-          {/* Progress Indicator Dots */}
-          <div className="flex items-center justify-center gap-1.5 pt-2">
-            {steps.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setCurrentStep(i);
-                  onNavigate(steps[i].tab);
-                }}
-                className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                  i === currentStep
-                    ? 'w-7 bg-indigo-500'
-                    : i < currentStep
-                    ? 'w-2 bg-indigo-400/60'
-                    : 'w-2 bg-white/20'
-                }`}
-                aria-label={`Go to step ${i + 1}`}
+            <div className="pt-2">
+              <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                Target Role, Career Track, or Exam
+              </label>
+              <input
+                type="text"
+                value={careerInterest}
+                onChange={(e) => setCareerInterest(e.target.value)}
+                placeholder="e.g. AI Systems Engineer, GATE CSE 2026, Full-Stack Dev..."
+                className="w-full px-4 py-3 rounded-2xl bg-[#14172f] border border-white/15 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-purple-500 transition-colors shadow-inner"
               />
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Modal Footer Controls */}
-        <div className="p-4 sm:p-5 bg-[#0e1124] border-t border-white/10 flex items-center justify-between gap-3">
-          <button
-            onClick={handleComplete}
-            className="text-xs text-slate-400 hover:text-slate-200 transition-colors font-semibold px-3 py-2 cursor-pointer"
-          >
-            Skip Tour
-          </button>
+            <div>
+              <p className="text-[11px] text-slate-400 mb-2 font-medium">Quick suggestions (click to select):</p>
+              <div className="flex flex-wrap gap-1.5">
+                {careerSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => setCareerInterest(suggestion)}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${
+                      careerInterest === suggestion
+                        ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20 border border-purple-400'
+                        : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10'
+                    }`}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <div className="flex items-center gap-2">
-            {currentStep > 0 && (
+            <div className="pt-4 flex justify-end">
               <button
-                onClick={handlePrev}
-                className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={!careerInterest.trim()}
+                className="px-6 py-2.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-xs font-bold text-white shadow-lg shadow-purple-500/30 flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+              >
+                <span>Continue</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: Education Background & Target Exam */}
+        {step === 2 && (
+          <div className="space-y-4 animate-in fade-in">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[10px] font-bold uppercase tracking-wider">
+              <GraduationCap className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Step 2: Current Background</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Tell us your background & target exam
+            </h1>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              We personalize your difficulty curves, lecture pacing, and academic calculator recommendations to your exact baseline.
+            </p>
+
+            <div className="pt-2">
+              <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                Current Education or Level
+              </label>
+              <input
+                type="text"
+                value={educationLevel}
+                onChange={(e) => setEducationLevel(e.target.value)}
+                placeholder="e.g. B.Tech 3rd Year, Class 12 CBSE, Working Professional..."
+                className="w-full px-4 py-3 rounded-2xl bg-[#14172f] border border-white/15 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 transition-colors shadow-inner"
+              />
+            </div>
+
+            <div>
+              <p className="text-[11px] text-slate-400 mb-2 font-medium">Quick suggestions:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {educationSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => setEducationLevel(suggestion)}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${
+                      educationLevel === suggestion
+                        ? 'bg-cyan-600 text-white shadow-md shadow-cyan-500/20 border border-cyan-400'
+                        : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10'
+                    }`}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                Target Exam or Career Milestone (Optional)
+              </label>
+              <input
+                type="text"
+                value={targetExam}
+                onChange={(e) => setTargetExam(e.target.value)}
+                placeholder="e.g. GATE 2026, FAANG Placements, JEE Advanced..."
+                className="w-full px-4 py-3 rounded-2xl bg-[#14172f] border border-white/15 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 transition-colors shadow-inner"
+              />
+            </div>
+
+            <div className="pt-4 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 flex items-center gap-1.5 cursor-pointer transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                disabled={!educationLevel.trim()}
+                className="px-6 py-2.5 rounded-full bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 text-xs font-bold text-white shadow-lg shadow-cyan-500/30 flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+              >
+                <span>Review & Launch</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Review & Generate MindPath */}
+        {step === 3 && (
+          <div className="space-y-4 animate-in fade-in">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Step 3: Launch Workspace</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Ready to generate your custom workspace
+            </h1>
+
+            <div className="p-4 rounded-2xl bg-[#14172f] border border-white/10 space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Target Career:</span>
+                <span className="font-bold text-purple-300">{careerInterest}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Education Level:</span>
+                <span className="font-bold text-cyan-300">{educationLevel}</span>
+              </div>
+              {targetExam && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Target Exam:</span>
+                  <span className="font-bold text-amber-300">{targetExam}</span>
+                </div>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="py-6 text-center space-y-3">
+                <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
+                <p className="text-xs font-bold text-white animate-pulse">{generationPhase}</p>
+                <div className="w-48 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-purple-500 to-cyan-400 rounded-full animate-pulse w-3/4" />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 text-[11px] text-slate-400">
+                <div className="flex items-center gap-2 text-slate-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Generates complete 6-level interactive curriculum</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Creates persistent diagnostic quiz in Turso Cloud DB</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Schedules active daily study tasks & milestone goals</span>
+                </div>
+              </div>
             )}
 
-            <button
-              onClick={handleNext}
-              className={`px-5 py-2 rounded-xl bg-gradient-to-r ${step.accent} hover:brightness-110 text-xs font-bold text-white shadow-lg flex items-center gap-1.5 transition-all cursor-pointer`}
-            >
-              <span>{currentStep === steps.length - 1 ? 'Start Learning Now!' : `Next: ${steps[currentStep + 1]?.badge}`}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="pt-4 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={loading}
+                className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleCompleteOnboarding}
+                disabled={loading}
+                className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 text-xs font-black text-white shadow-xl shadow-purple-500/30 flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+              >
+                <span>{loading ? 'Activating AI...' : 'Generate My MindPath 🚀'}</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
 };
-

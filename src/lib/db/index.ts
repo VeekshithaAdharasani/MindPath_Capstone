@@ -33,20 +33,20 @@ export async function initDatabase(): Promise<void> {
       try {
         attempts++;
         // Create tables if they do not exist
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        password_hash TEXT,
-        avatar_url TEXT DEFAULT '/assets/extracted/default_avatar.svg',
-        education_level TEXT DEFAULT 'Class 12',
-        career_interest TEXT DEFAULT 'Computer Science',
-        streak_days INTEGER DEFAULT 1,
-        total_study_hours INTEGER DEFAULT 0,
-        created_at INTEGER NOT NULL
-      );
-    `);
+        await client.execute(`
+          CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            password_hash TEXT,
+            avatar_url TEXT DEFAULT '/assets/extracted/default_avatar.svg',
+            education_level TEXT DEFAULT 'Class 12',
+            career_interest TEXT DEFAULT 'Computer Science',
+            streak_days INTEGER DEFAULT 1,
+            total_study_hours INTEGER DEFAULT 0,
+            created_at INTEGER NOT NULL
+          );
+        `);
 
     await client.execute(`
       CREATE TABLE IF NOT EXISTS tasks (
@@ -230,7 +230,7 @@ export async function initDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_generated_quizzes_user ON generated_quizzes(user_id, created_at DESC);
     `);
 
-    console.log('✅ Turso Database schema verified (zero mock data seeded).');
+        console.log('✅ Turso Database schema verified (zero mock data seeded).');
         isDbInitialized = true;
         return;
       } catch (err: any) {

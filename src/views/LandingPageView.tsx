@@ -884,54 +884,20 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {authMode === 'register' && (
-                <>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Confirm Password</label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-enter password"
-                        required
-                        className="w-full bg-[#080a18] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-                      />
-                    </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">Confirm Password</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      required
+                      className="w-full bg-[#080a18] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 mb-1">Education Level</label>
-                      <select
-                        value={educationLevel}
-                        onChange={(e) => setEducationLevel(e.target.value)}
-                        className="w-full bg-[#080a18] border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
-                      >
-                        <option value="Class 10">Class 10</option>
-                        <option value="Class 11">Class 11</option>
-                        <option value="Class 12">Class 12</option>
-                        <option value="College Undergrad">College Undergrad</option>
-                        <option value="Graduate / Professional">Graduate / Professional</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 mb-1">Career Goal</label>
-                      <select
-                        value={careerInterest}
-                        onChange={(e) => setCareerInterest(e.target.value)}
-                        className="w-full bg-[#080a18] border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
-                      >
-                        <option value="AI & Data Science">AI &amp; Data Science</option>
-                        <option value="Full Stack Development">Full Stack Development</option>
-                        <option value="Cloud Architecture">Cloud Architecture</option>
-                        <option value="Cybersecurity">Cybersecurity</option>
-                        <option value="Medical & Healthcare">Medical &amp; Healthcare</option>
-                      </select>
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
 
               <button

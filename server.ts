@@ -97,7 +97,17 @@ app.use('/api/', apiLimiter);
 app.use('/api/ai/', aiLimiter);
 app.use('/api/storage/', storageLimiter);
 
-// Initialize DB schema & seed data
+// Ensure DB schema is ready before handling any API request
+app.use('/api', async (_req, _res, next) => {
+  try {
+    await initDatabase();
+  } catch (err) {
+    console.warn('DB initialization middleware notice:', err);
+  }
+  next();
+});
+
+// Initialize DB schema on cold start
 initDatabase().catch(console.error);
 
 function getUserId(req: express.Request): string {
@@ -110,8 +120,16 @@ function getUserId(req: express.Request): string {
   return String(rawId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
 }
 
-function resolveUserId(req: express.Request): string {
-  return getUserId(req);
+async function resolveUserId(req: express.Request): Promise<string> {
+  const uid = getUserId(req);
+  if (uid) return uid;
+  try {
+    const single = await client.execute('SELECT id FROM users ORDER BY created_at DESC LIMIT 1');
+    if (single.rows.length > 0 && single.rows[0].id) {
+      return String(single.rows[0].id);
+    }
+  } catch {}
+  return 'default-user';
 }
 
 // -------------------------------------------------------------
@@ -254,6 +272,141 @@ app.post('/api/user/login', async (req, res) => {
   } catch (err: any) {
     console.error('Login error:', err);
     return res.status(500).json({ error: 'Failed to authenticate user' });
+  }
+});
+
+app.post('/api/onboarding/complete', async (req, res) => {
+  const userId = await resolveUserId(req);
+  const { educationLevel, careerInterest, targetExam } = req.body || {};
+
+  if (!userId) {
+    return res.status(401).json({ error: 'User must be authenticated' });
+  }
+
+  const cleanEdu = String(educationLevel || 'Undergraduate').trim().slice(0, 100);
+  const cleanCareer = String(careerInterest || 'AI & Computer Science').trim().slice(0, 100);
+
+  try {
+    // 1. Update user profile in Turso DB
+    await client.execute({
+      sql: 'UPDATE users SET education_level = ?, career_interest = ? WHERE id = ?',
+      args: [cleanEdu, cleanCareer, userId],
+    });
+
+    // 2. Fetch updated user
+    const userRes = await client.execute({
+      sql: 'SELECT id, name, email, avatar_url, education_level, career_interest, streak_days, total_study_hours FROM users WHERE id = ?',
+      args: [userId],
+    });
+    const updatedUser: any = userRes.rows[0];
+
+    // 3. Generate 6-level career roadmap in background & save
+    try {
+      const plan = await generateCareerPath(cleanCareer);
+      if (plan && Array.isArray(plan.milestones)) {
+        await client.execute({
+          sql: `INSERT INTO generated_career_paths (id, user_id, goal, path_json, created_at)
+                VALUES (?, ?, ?, ?, ?)`,
+          args: [
+            `path_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            userId,
+            cleanCareer,
+            JSON.stringify(plan),
+            Date.now(),
+          ],
+        });
+
+        // Seed initial milestones from plan
+        for (let i = 0; i < Math.min(plan.milestones.length, 3); i++) {
+          const m = plan.milestones[i];
+          await client.execute({
+            sql: `INSERT INTO milestones (id, user_id, title, time_text, status, icon_type, order_index)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              `ms_${Date.now()}_${i}`,
+              userId,
+              m.title,
+              `${m.estimatedWeeks || 2} weeks`,
+              i === 0 ? 'active' : 'upcoming',
+              i === 0 ? 'book' : 'project',
+              i,
+            ],
+          });
+        }
+      }
+    } catch (pErr) {
+      console.warn('Roadmap generation notice:', pErr);
+    }
+
+    // 4. Generate initial diagnostic quiz
+    try {
+      const quiz = await generateQuiz(cleanCareer, 'intermediate', 5);
+      if (quiz && Array.isArray(quiz.questions)) {
+        await client.execute({
+          sql: `INSERT INTO generated_quizzes (id, user_id, topic, level, title, questions_json, category, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [
+            `quiz_${Date.now()}_diag`,
+            userId,
+            cleanCareer,
+            'intermediate',
+            quiz.title || `${cleanCareer} Diagnostic Quiz`,
+            JSON.stringify(quiz.questions),
+            'Subject Tests',
+            Date.now(),
+          ],
+        });
+      }
+    } catch (qErr) {
+      console.warn('Initial quiz generation notice:', qErr);
+    }
+
+    // 5. Create initial study tasks
+    try {
+      await client.execute({
+        sql: `INSERT INTO tasks (id, user_id, title, time_text, category, completed, order_index, created_at)
+              VALUES (?, ?, ?, ?, ?, 0, 0, ?)`,
+        args: [
+          `task_${Date.now()}_1`,
+          userId,
+          `Complete ${cleanCareer} Diagnostic Assessment`,
+          'Today • 30 min',
+          'Tasks',
+          Date.now(),
+        ],
+      });
+      await client.execute({
+        sql: `INSERT INTO tasks (id, user_id, title, time_text, category, completed, order_index, created_at)
+              VALUES (?, ?, ?, ?, ?, 0, 1, ?)`,
+        args: [
+          `task_${Date.now()}_2`,
+          userId,
+          `Review Core Foundations & Curriculum in Learning Hub`,
+          'Tomorrow • 45 min',
+          'Tasks',
+          Date.now(),
+        ],
+      });
+    } catch (tErr) {
+      console.warn('Initial tasks notice:', tErr);
+    }
+
+    return res.json({
+      ok: true,
+      user: {
+        id: updatedUser?.id,
+        name: updatedUser?.name,
+        email: updatedUser?.email,
+        avatarUrl: updatedUser?.avatar_url,
+        educationLevel: updatedUser?.education_level,
+        careerInterest: updatedUser?.career_interest,
+        streakDays: updatedUser?.streak_days || 1,
+        totalStudyHours: updatedUser?.total_study_hours || 0,
+      },
+    });
+  } catch (err: any) {
+    console.error('Onboarding completion error:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to complete onboarding' });
   }
 });
 
@@ -608,7 +761,7 @@ app.post('/api/quizzes/clear', async (req, res) => {
 });
 
 app.post('/api/quizzes/attempt', async (req, res) => {
-  const userId = getUserId(req);
+  const userId = await resolveUserId(req);
   const { quizTitle, category, score, totalQuestions, weakTopics } = req.body;
   if (!quizTitle || typeof score !== 'number' || typeof totalQuestions !== 'number' || totalQuestions <= 0 || score < 0) {
     return res.status(400).json({ error: 'Valid quiz Title, score, and totalQuestions are required' });
@@ -1641,7 +1794,7 @@ app.get('/api/lessons', async (req, res) => {
 // AI Career Path Generation & Persistence
 app.post('/api/career/path', async (req, res) => {
   const { goal } = req.body || {};
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   if (!goal) return res.status(400).json({ error: 'Goal required' });
 
   try {
@@ -1788,7 +1941,7 @@ app.post('/api/quiz/generate', async (req, res) => {
 // Save or Update User Course Lesson Progress
 app.post('/api/user_course_lessons', async (req, res) => {
   const { courseId, lessonId, lessonTitle, videoUrl, videoSource, completed } = req.body || {};
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
 
   if (!courseId || !lessonId) {
     return res.status(400).json({ error: 'courseId and lessonId required' });
@@ -1829,7 +1982,7 @@ app.post('/api/user_course_lessons', async (req, res) => {
 
 // Get User Course Lesson Progress
 app.get('/api/user_course_lessons', async (req, res) => {
-  const userId = resolveUserId(req);
+  const userId = await resolveUserId(req);
   const courseId = req.query.courseId as string;
   if (!userId) return res.json({ success: true, completedLessons: [] });
 
