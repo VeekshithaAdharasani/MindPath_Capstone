@@ -185,7 +185,10 @@ var ProfileUpdateSchema = z.object({
   email: z.string().email(),
   educationLevel: z.string(),
   careerInterest: z.string(),
-  avatarUrl: z.string().optional()
+  avatarUrl: z.string().optional(),
+  location: z.string().optional(),
+  targetExam: z.string().optional(),
+  bio: z.string().optional()
 });
 
 // src/lib/db/index.ts
@@ -218,6 +221,10 @@ var users = sqliteTable("users", {
   careerInterest: text("career_interest").default("Computer Science"),
   streakDays: integer("streak_days").default(1),
   totalStudyHours: integer("total_study_hours").default(0),
+  onboardingCompleted: integer("onboarding_completed").default(0),
+  location: text("location").default(""),
+  targetExam: text("target_exam").default(""),
+  bio: text("bio").default(""),
   createdAt: integer("created_at").notNull()
 });
 var tasks = sqliteTable("tasks", {
@@ -345,6 +352,10 @@ async function runMigrations() {
           career_interest TEXT DEFAULT 'Computer Science',
           streak_days INTEGER DEFAULT 1,
           total_study_hours INTEGER DEFAULT 0,
+          onboarding_completed INTEGER DEFAULT 0,
+          location TEXT DEFAULT '',
+          target_exam TEXT DEFAULT '',
+          bio TEXT DEFAULT '',
           created_at INTEGER NOT NULL
         );
       `);
@@ -1808,7 +1819,7 @@ app.post("/api/user/create", async (req, res) => {
     const passwordHash = hashPassword(password);
     const id = `user_${Date.now()}`;
     await client.execute({
-      sql: "INSERT INTO users (id, name, email, password_hash, avatar_url, education_level, career_interest, streak_days, total_study_hours, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?)",
+      sql: "INSERT INTO users (id, name, email, password_hash, avatar_url, education_level, career_interest, streak_days, total_study_hours, onboarding_completed, location, target_exam, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?)",
       args: [
         id,
         name.trim(),
@@ -1817,6 +1828,8 @@ app.post("/api/user/create", async (req, res) => {
         cleanAvatar,
         String(educationLevel || "Class 12").slice(0, 50),
         String(careerInterest || "Computer Science").slice(0, 50),
+        String(req.body.location || "").slice(0, 100),
+        String(req.body.targetExam || "").slice(0, 100),
         Date.now()
       ]
     });
@@ -1830,7 +1843,10 @@ app.post("/api/user/create", async (req, res) => {
         educationLevel: educationLevel || "Class 12",
         careerInterest: careerInterest || "Computer Science",
         streakDays: 1,
-        totalStudyHours: 0
+        totalStudyHours: 0,
+        onboardingCompleted: 0,
+        location: req.body.location || "",
+        targetExam: req.body.targetExam || ""
       }
     });
   } catch (err) {
@@ -1872,7 +1888,11 @@ app.post("/api/user/login", async (req, res) => {
         educationLevel: u.education_level,
         careerInterest: u.career_interest,
         streakDays: u.streak_days,
-        totalStudyHours: u.total_study_hours
+        totalStudyHours: u.total_study_hours,
+        onboardingCompleted: Number(u.onboarding_completed) || 0,
+        location: u.location || "",
+        targetExam: u.target_exam || "",
+        bio: u.bio || ""
       }
     });
   } catch (err) {
@@ -1882,19 +1902,30 @@ app.post("/api/user/login", async (req, res) => {
 });
 app.post("/api/onboarding/complete", async (req, res) => {
   const userId = await resolveUserId(req);
-  const { educationLevel, careerInterest, targetExam } = req.body || {};
+  const { educationLevel, careerInterest, targetExam, location, bio, avatarUrl } = req.body || {};
   if (!userId) {
     return res.status(401).json({ error: "User must be authenticated" });
   }
   const cleanEdu = String(educationLevel || "Undergraduate").trim().slice(0, 100);
   const cleanCareer = String(careerInterest || "AI & Computer Science").trim().slice(0, 100);
+  const cleanExam = String(targetExam || "").trim().slice(0, 100);
+  const cleanLocation = String(location || "").trim().slice(0, 100);
+  const cleanBio = String(bio || "").trim().slice(0, 300);
+  const cleanAvatar = avatarUrl && typeof avatarUrl === "string" && (avatarUrl.startsWith("data:") || avatarUrl.startsWith("/assets/") || avatarUrl.startsWith("https://")) ? avatarUrl.slice(0, 5e5) : null;
   try {
-    await client.execute({
-      sql: "UPDATE users SET education_level = ?, career_interest = ? WHERE id = ?",
-      args: [cleanEdu, cleanCareer, userId]
-    });
+    if (cleanAvatar) {
+      await client.execute({
+        sql: "UPDATE users SET education_level = ?, career_interest = ?, target_exam = ?, location = ?, bio = ?, avatar_url = ?, onboarding_completed = 1 WHERE id = ?",
+        args: [cleanEdu, cleanCareer, cleanExam, cleanLocation, cleanBio, cleanAvatar, userId]
+      });
+    } else {
+      await client.execute({
+        sql: "UPDATE users SET education_level = ?, career_interest = ?, target_exam = ?, location = ?, bio = ?, onboarding_completed = 1 WHERE id = ?",
+        args: [cleanEdu, cleanCareer, cleanExam, cleanLocation, cleanBio, userId]
+      });
+    }
     const userRes = await client.execute({
-      sql: "SELECT id, name, email, avatar_url, education_level, career_interest, streak_days, total_study_hours FROM users WHERE id = ?",
+      sql: "SELECT id, name, email, avatar_url, education_level, career_interest, streak_days, total_study_hours, onboarding_completed, location, target_exam, bio FROM users WHERE id = ?",
       args: [userId]
     });
     const updatedUser = userRes.rows[0];
@@ -1991,7 +2022,11 @@ app.post("/api/onboarding/complete", async (req, res) => {
         educationLevel: updatedUser?.education_level,
         careerInterest: updatedUser?.career_interest,
         streakDays: updatedUser?.streak_days || 1,
-        totalStudyHours: updatedUser?.total_study_hours || 0
+        totalStudyHours: updatedUser?.total_study_hours || 0,
+        onboardingCompleted: Number(updatedUser?.onboarding_completed) || 1,
+        location: updatedUser?.location || "",
+        targetExam: updatedUser?.target_exam || "",
+        bio: updatedUser?.bio || ""
       }
     });
   } catch (err) {
@@ -2019,7 +2054,11 @@ app.get("/api/user", async (req, res) => {
         educationLevel: u.education_level,
         careerInterest: u.career_interest,
         streakDays: u.streak_days,
-        totalStudyHours: u.total_study_hours
+        totalStudyHours: u.total_study_hours,
+        onboardingCompleted: Number(u.onboarding_completed) || 0,
+        location: u.location || "",
+        targetExam: u.target_exam || "",
+        bio: u.bio || ""
       });
     }
     return res.status(404).json({ error: "User not found" });
@@ -2034,10 +2073,20 @@ app.post("/api/user", async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.format() });
     }
-    const { name, email, educationLevel, careerInterest, avatarUrl } = parsed.data;
+    const { name, email, educationLevel, careerInterest, avatarUrl, location, targetExam, bio } = parsed.data;
     await client.execute({
-      sql: `UPDATE users SET name = ?, email = ?, education_level = ?, career_interest = ?${avatarUrl ? ", avatar_url = ?" : ""} WHERE id = ?`,
-      args: avatarUrl ? [name, email, educationLevel, careerInterest, avatarUrl, userId] : [name, email, educationLevel, careerInterest, userId]
+      sql: `UPDATE users SET name = ?, email = ?, education_level = ?, career_interest = ?${avatarUrl ? ", avatar_url = ?" : ""}${location !== void 0 ? ", location = ?" : ""}${targetExam !== void 0 ? ", target_exam = ?" : ""}${bio !== void 0 ? ", bio = ?" : ""} WHERE id = ?`,
+      args: [
+        name,
+        email,
+        educationLevel,
+        careerInterest,
+        ...avatarUrl ? [avatarUrl] : [],
+        ...location !== void 0 ? [location] : [],
+        ...targetExam !== void 0 ? [targetExam] : [],
+        ...bio !== void 0 ? [bio] : [],
+        userId
+      ]
     });
     return res.json({ ok: true, message: "Profile updated in Turso" });
   } catch (err) {

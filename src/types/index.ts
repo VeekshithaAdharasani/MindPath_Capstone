@@ -18,6 +18,10 @@ export interface UserProfile {
   careerInterest: string;
   streakDays: number;
   totalStudyHours: number;
+  onboardingCompleted?: number;
+  location?: string;
+  targetExam?: string;
+  bio?: string;
 }
 
 export interface TaskItem {

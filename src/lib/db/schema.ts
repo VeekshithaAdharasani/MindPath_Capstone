@@ -10,6 +10,10 @@ export const users = sqliteTable('users', {
   careerInterest: text('career_interest').default('Computer Science'),
   streakDays: integer('streak_days').default(1),
   totalStudyHours: integer('total_study_hours').default(0),
+  onboardingCompleted: integer('onboarding_completed').default(0),
+  location: text('location').default(''),
+  targetExam: text('target_exam').default(''),
+  bio: text('bio').default(''),
   createdAt: integer('created_at').notNull(),
 });
 

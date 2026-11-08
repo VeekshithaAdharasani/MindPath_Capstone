@@ -154,6 +154,9 @@ export default function App() {
           if (parsed?.id) {
             setUser(parsed);
             refreshUserData(parsed.id);
+            if (parsed.onboardingCompleted !== 1) {
+              setIsOnboardingOpen(true);
+            }
             return;
           }
         } catch {}
@@ -343,22 +346,30 @@ export default function App() {
     setActiveTab('home');
   };
 
-  const handleAuthenticated = (authedUser: UserProfile, isNewRegistration?: boolean) => {
+  const handleAuthenticated = (authedUser: UserProfile, _isNewRegistration?: boolean) => {
     setUser(authedUser);
     localStorage.setItem('mindpath_user', JSON.stringify(authedUser));
     refreshUserData(authedUser.id);
     setIsAuthOpen(false);
     
-    // Only launch onboarding for brand-new account registration if never completed
-    const hasCompleted =
-      localStorage.getItem(`mindpath_onboarding_completed_${authedUser.id}`) ||
-      localStorage.getItem('mindpath_onboarding_completed');
-    if (isNewRegistration && !hasCompleted) {
+    // Compulsory check: if DB record says onboarding is not completed (0), open onboarding immediately
+    if (authedUser.onboardingCompleted !== 1) {
+      localStorage.removeItem(`mindpath_onboarding_completed_${authedUser.id}`);
       setIsOnboardingOpen(true);
     } else {
+      localStorage.setItem(`mindpath_onboarding_completed_${authedUser.id}`, 'true');
       setIsOnboardingOpen(false);
     }
   };
+
+  // If user is logged in but hasn't completed onboarding, make it compulsory on signin/signup
+  useEffect(() => {
+    if (user?.id) {
+      if (user.onboardingCompleted !== 1) {
+        setIsOnboardingOpen(true);
+      }
+    }
+  }, [user?.id, user?.onboardingCompleted]);
 
   // If user is not authenticated, render the dedicated futuristic Landing Page
   if (!user.id) {
@@ -565,9 +576,7 @@ export default function App() {
               localStorage.setItem('mindpath_user', JSON.stringify(newUser));
               refreshUserData(newUser.id);
               setIsCreateAccountOpen(false);
-              const hasCompleted = localStorage.getItem('mindpath_onboarding_completed') ||
-                localStorage.getItem(`mindpath_onboarding_completed_${newUser.id}`);
-              if (!hasCompleted) {
+              if (newUser.onboardingCompleted !== 1) {
                 setIsOnboardingOpen(true);
               }
             }}
@@ -577,20 +586,15 @@ export default function App() {
         {isOnboardingOpen && (
           <OnboardingTour
             isOpen={isOnboardingOpen}
+            isCompulsory={user.onboardingCompleted !== 1}
+            initialAvatar={user.avatarUrl}
+            initialLocation={user.location}
             onClose={() => {
               setIsOnboardingOpen(false);
-              localStorage.setItem('mindpath_onboarding_completed', 'true');
-              if (user?.id) {
-                localStorage.setItem(`mindpath_onboarding_completed_${user.id}`, 'true');
-              }
             }}
             onNavigate={(tab) => {
               setActiveTab(tab);
               setIsOnboardingOpen(false);
-              localStorage.setItem('mindpath_onboarding_completed', 'true');
-              if (user?.id) {
-                localStorage.setItem(`mindpath_onboarding_completed_${user.id}`, 'true');
-              }
             }}
             userName={user.name}
             userId={user?.id}

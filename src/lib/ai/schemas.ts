@@ -42,4 +42,7 @@ export const ProfileUpdateSchema = z.object({
   educationLevel: z.string(),
   careerInterest: z.string(),
   avatarUrl: z.string().optional(),
+  location: z.string().optional(),
+  targetExam: z.string().optional(),
+  bio: z.string().optional(),
 });

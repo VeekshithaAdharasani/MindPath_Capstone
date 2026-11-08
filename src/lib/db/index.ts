@@ -40,6 +40,10 @@ async function runMigrations(): Promise<void> {
           career_interest TEXT DEFAULT 'Computer Science',
           streak_days INTEGER DEFAULT 1,
           total_study_hours INTEGER DEFAULT 0,
+          onboarding_completed INTEGER DEFAULT 0,
+          location TEXT DEFAULT '',
+          target_exam TEXT DEFAULT '',
+          bio TEXT DEFAULT '',
           created_at INTEGER NOT NULL
         );
       `);
