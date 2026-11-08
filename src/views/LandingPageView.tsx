@@ -176,10 +176,26 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
           backgroundSize: 'cover',
         }}
       >
+        {/* Top Dark Header Gradient ensuring smooth navigation and zero window mullion seams */}
+        <div
+          className="absolute inset-x-0 top-0 pointer-events-none z-10"
+          style={{
+            height: '130px',
+            background: 'linear-gradient(to bottom, rgba(7, 9, 20, 0.95) 0%, rgba(7, 9, 20, 0.7) 60%, transparent 100%)',
+          }}
+        />
+
         {/* Left Dark Gradient Overlay for Maximum Text Readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#070914] via-[#070914]/90 lg:via-[#070914]/75 to-transparent pointer-events-none lg:w-3/5" />
-        {/* Deep, seamless bottom fade dissolving the image into pure #070914 with zero cut line */}
-        <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-[#070914] via-[#070914] via-40% to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#070914] via-[#070914]/90 lg:via-[#070914]/70 to-transparent pointer-events-none lg:w-3/5 z-0" />
+
+        {/* Deep, multi-stop seamless bottom fade dissolving the image 100% into pure #070914 with zero cut line */}
+        <div
+          className="absolute inset-x-0 bottom-0 pointer-events-none z-10"
+          style={{
+            height: '240px',
+            background: 'linear-gradient(to top, #070914 0%, #070914 30%, rgba(7, 9, 20, 0.85) 65%, transparent 100%)',
+          }}
+        />
 
         {/* 1. TOP NAVIGATION BAR */}
         <header className="px-6 py-5 max-w-7xl mx-auto w-full flex items-center justify-between relative z-20">
@@ -320,10 +336,152 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 Explore Features
               </button>
             </div>
+
+            {/* Trusted by 10,000+ Ambitious Students Social Proof Badge */}
+            <div className="pt-2 flex items-center gap-3">
+              <div className="flex -space-x-2.5 overflow-hidden">
+                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white text-[11px] font-bold ring-2 ring-[#070914]">
+                  AH
+                </div>
+                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-sky-500 text-white text-[11px] font-bold ring-2 ring-[#070914]">
+                  SM
+                </div>
+                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-500 text-white text-[11px] font-bold ring-2 ring-[#070914]">
+                  RV
+                </div>
+                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500 text-white text-[11px] font-bold ring-2 ring-[#070914]">
+                  PS
+                </div>
+                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-[10px] font-bold ring-2 ring-[#070914]">
+                  +10k
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                  <span>Trusted by 10,000+ Ambitious Students</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                </div>
+                <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                  <div className="flex text-amber-400">
+                    {'★'.repeat(5)}
+                  </div>
+                  <span className="font-semibold text-slate-300">4.9/5</span>
+                  <span>from 1,200+ reviews</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Right Column: Clean Spacer allowing the professional background photography & skyline to shine */}
-          <div className="hidden lg:block lg:col-span-6 xl:col-span-7 min-h-[500px] pointer-events-none" />
+          {/* Right Column: Interactive Live Workspace Dashboard Preview (Image 3) */}
+          <div className="hidden lg:block lg:col-span-6 xl:col-span-7">
+            <div className="relative rounded-3xl p-6 bg-[#0c1026]/85 border border-white/15 backdrop-blur-2xl shadow-2xl shadow-black/80 max-w-lg ml-auto hover:border-purple-500/30 transition-all duration-300">
+              {/* Terminal Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  </div>
+                  <span className="font-mono text-xs text-slate-400 ml-2">mindpath-ai {'//'} student-workspace</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>AI AGENT ONLINE</span>
+                </div>
+              </div>
+
+              {/* Top 2 Metric Cards */}
+              <div className="grid grid-cols-2 gap-3.5 mt-4">
+                {/* Weekly Mastery */}
+                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-purple-300">Weekly Mastery</div>
+                    <div className="flex items-baseline gap-1.5 mt-1">
+                      <span className="text-xl font-black text-white">78%</span>
+                      <span className="text-[10px] font-bold text-emerald-400">↗ +14%</span>
+                    </div>
+                    <div className="text-[10px] text-amber-400 flex items-center gap-1 mt-1 font-medium">
+                      <Flame className="w-3 h-3" />
+                      <span>12-Day Study Streak</span>
+                    </div>
+                  </div>
+                  <div className="w-10 h-10 rounded-full border-2 border-purple-500/30 border-t-purple-400 border-r-cyan-400 flex items-center justify-center">
+                    <Trophy className="w-4 h-4 text-purple-300" />
+                  </div>
+                </div>
+
+                {/* Target Match */}
+                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">Target Match</span>
+                    <span className="text-[10px] font-black text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded">94% FIT</span>
+                  </div>
+                  <div className="text-xs font-bold text-white mt-1 truncate">AI Systems Engineer</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">High Growth • ₹18L - ₹32L Base</div>
+                  <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden mt-2">
+                    <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-cyan-400 w-[94%]" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tailored Study Roadmap */}
+              <div className="mt-3.5 p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                    <Brain className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Tailored Study Roadmap</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">Class 12 &amp; Undergrad Track</span>
+                </div>
+
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-[11px] font-medium">Calculus &amp; Linear Algebra Foundations</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-emerald-500/20 px-2 py-0.5 rounded-full text-emerald-300">Mastered</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-200">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+                      <span className="text-[11px] font-medium">Deep Learning &amp; Backpropagation</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-purple-500/30 px-2 py-0.5 rounded-full text-purple-200">In Progress (85%)</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5 text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-[11px]">Attention Mechanics &amp; Transformers</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-mono">Unlocks Next</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Diagnostic Ready Action */}
+              <div className="mt-3.5 p-3 rounded-2xl bg-gradient-to-r from-purple-950/60 to-indigo-950/60 border border-purple-500/30 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                    <Flame className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white">AI Diagnostic Ready</div>
+                    <div className="text-[10px] text-slate-400">Take a 5-min mock quiz on Backprop to unlock next badge.</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleOpenAuth('register')}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-[11px] font-bold text-white shadow-md cursor-pointer transition-transform hover:scale-105 shrink-0"
+                >
+                  Start Quiz (+50 XP)
+                </button>
+              </div>
+            </div>
+          </div>
         </section>
       </div>
 

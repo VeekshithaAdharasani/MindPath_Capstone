@@ -384,7 +384,11 @@ CRITICAL INSTRUCTIONS:
       },
       onDelta: (delta) => {
         // Filter out any internal model tokens from being streamed to UI
-        const cleanDelta = delta.replace(/<\|[^>]*\|>/g, '');
+        const cleanDelta = delta
+          .replace(/<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/gi, '')
+          .replace(/<\|tool_call_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, '')
+          .replace(/functions\.[a-zA-Z0-9_-]+:?\d*<\|tool_call_argument_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, '')
+          .replace(/<\|[^>]*\|>/g, '');
         if (cleanDelta) {
           setStreamingDelta((prev) => prev + cleanDelta);
         }

@@ -72,22 +72,35 @@ export async function enzonicChat({
   }
 }
 
+export interface StreamChunk {
+  content?: string;
+  isKeepAlive?: boolean;
+}
+
 export async function* enzonicStream(
   messages: ChatMessage[],
   opts?: { temperature?: number; maxTokens?: number }
-) {
+): AsyncGenerator<StreamChunk, void, unknown> {
   try {
     const stream = await enzonic.chat.completions.create({
       model: ENZONIC_MODEL,
       messages,
       stream: true,
       temperature: opts?.temperature ?? 0.3,
-      max_tokens: opts?.maxTokens ?? 4096,
+      max_tokens: opts?.maxTokens ?? 3072,
     });
 
+    let lastActive = Date.now();
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
-      if (delta) yield delta;
+      if (delta) {
+        yield { content: delta };
+        lastActive = Date.now();
+      } else if (Date.now() - lastActive >= 1000) {
+        // Send keep-alive during reasoning/thinking phase
+        yield { isKeepAlive: true };
+        lastActive = Date.now();
+      }
     }
   } catch (err: any) {
     console.warn('Enzonic stream error, trying fallback:', err?.message);
@@ -107,7 +120,7 @@ export async function* enzonicStream(
           },
         });
         for await (const chunk of responseStream) {
-          if (chunk.text) yield chunk.text;
+          if (chunk.text) yield { content: chunk.text };
         }
         return;
       } catch (geminiErr: any) {
@@ -115,6 +128,6 @@ export async function* enzonicStream(
       }
     }
 
-    yield "Hello! I am your MindPath AI Companion. Let's work together to achieve your academic and career goals!";
+    yield { content: "Hello! I am your MindPath AI Companion. Let's work together to achieve your academic and career goals!" };
   }
 }

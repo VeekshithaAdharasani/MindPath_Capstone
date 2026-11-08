@@ -1213,18 +1213,17 @@ app.post('/api/ai/chat', async (req, res) => {
     ) || (cleanTrimmed.length < 4 && !cleanTrimmed.includes('?'));
 
   const isExplicitRealtimeQuery =
-    /\b(search|lookup|find|latest|news|current|2025|2026|today|cutoff|exam|salaries|salary|placement|companies|ranking|trends?|syllabus|dates|eligibility|admissions?|notification)\b/i.test(
+    /\b(search (web|online|internet|for)|lookup|latest|recent|current|2025|2026|today|cutoff|exam dates?|salaries|salary|hiring|trends?|placement|openings|ranking)\b/i.test(
       latestUserMsg
     );
 
   // Auto use web search ONLY when required:
-  // Greetings and casual chit-chat NEVER trigger web search, regardless of toggle.
-  // Only trigger if explicit realtime keywords are present, OR if toggle is ON and the user is asking an informational question.
+  // General study strategy or syllabus queries are handled with high accuracy by the 550B foundation model
   const needsWebSearch =
     searchResults.length === 0 &&
     !isGreetingOrCasual &&
     !/\b(todays? ai|ai models?|llms?|leaderboard)\b/i.test(latestUserMsg) &&
-    Boolean(isExplicitRealtimeQuery || (enableWebSearch && (latestUserMsg.includes('?') || latestUserMsg.length >= 18)));
+    Boolean(enableWebSearch && isExplicitRealtimeQuery);
 
   if (needsWebSearch && latestUserMsg) {
     try {
@@ -1279,6 +1278,14 @@ app.post('/api/ai/chat', async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
+    // Constant 2-second keep-alive pulse prevents Vercel Serverless Function & browser idle socket timeouts
+    const keepAliveTimer = setInterval(() => {
+      if (!res.writableEnded) {
+        res.write(': keepalive\n\n');
+        res.flushHeaders?.();
+      }
+    }, 2000);
+
     try {
       // Send tool event header if any tools yielded events
       for (const tEvent of toolEvents) {
@@ -1290,20 +1297,24 @@ app.post('/api/ai/chat', async (req, res) => {
       let toolExecuted = false;
 
       for await (const chunk of streamIter) {
-        // Detect and intercept raw tool call tokens if emitted by the model
-        if (!toolExecuted && (chunk.includes('<|tool_calls_section_begin|>') || chunk.includes('functions.live_web_search') || chunk.trim().startsWith('Tool:'))) {
-          toolBuffer += chunk;
+        if (chunk.isKeepAlive) {
+          res.write(': keepalive\n\n');
+          res.flushHeaders?.();
           continue;
         }
 
-        if (toolBuffer) {
-          toolBuffer += chunk;
-          if (toolBuffer.includes('<|tool_calls_section_end|>') || toolBuffer.length >= 250) {
+        const textContent = chunk.content || '';
+        if (!textContent) continue;
+
+        // Detect and intercept raw tool call tokens if emitted by the model
+        if (!toolExecuted && (textContent.includes('<|') || textContent.includes('functions.') || textContent.trim().startsWith('Tool:'))) {
+          toolBuffer += textContent;
+          if (toolBuffer.includes('<|tool_calls_section_end|>') || toolBuffer.includes('<|tool_call_end|>') || toolBuffer.length >= 200) {
             const tc = extractToolCall(toolBuffer);
             if (tc) {
               toolExecuted = true;
               let toolData = '';
-              if (tc.toolName.includes('search')) {
+              if (tc.toolName.includes('search') || tc.toolName.includes('web')) {
                 res.write(`data: ${JSON.stringify({ toolEvent: { type: 'web_search', query: tc.query } })}\n\n`);
                 const sr = await performWebSearch(tc.query);
                 toolData = sr.map((r, i) => `[Source ${i + 1}]: "${r.title}"\n${r.snippet}\nURL: ${r.url}`).join('\n\n');
@@ -1326,7 +1337,58 @@ app.post('/api/ai/chat', async (req, res) => {
 
               toolBuffer = '';
               for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 })) {
-                const cleaned = finalChunk.replace(/<\|[^>]*\|>/g, '');
+                if (finalChunk.isKeepAlive) {
+                  res.write(': keepalive\n\n');
+                  res.flushHeaders?.();
+                  continue;
+                }
+                const cleaned = cleanChatOutput(finalChunk.content || '');
+                if (cleaned) {
+                  res.write(`data: ${JSON.stringify({ delta: cleaned })}\n\n`);
+                }
+              }
+              break;
+            }
+          }
+          continue;
+        }
+
+        if (toolBuffer) {
+          toolBuffer += textContent;
+          if (toolBuffer.includes('<|tool_calls_section_end|>') || toolBuffer.includes('<|tool_call_end|>') || toolBuffer.length >= 250) {
+            const tc = extractToolCall(toolBuffer);
+            if (tc) {
+              toolExecuted = true;
+              let toolData = '';
+              if (tc.toolName.includes('search') || tc.toolName.includes('web')) {
+                res.write(`data: ${JSON.stringify({ toolEvent: { type: 'web_search', query: tc.query } })}\n\n`);
+                const sr = await performWebSearch(tc.query);
+                toolData = sr.map((r, i) => `[Source ${i + 1}]: "${r.title}"\n${r.snippet}\nURL: ${r.url}`).join('\n\n');
+              } else if (tc.toolName.includes('calc') || tc.toolName.includes('math')) {
+                const calc = solveAcademicCalculation(tc.query);
+                toolData = `Calculation Result: ${calc.result}`;
+              } else {
+                toolData = `Action completed for: ${tc.query}`;
+              }
+
+              // Append tool results and ask model for final answer directly
+              augmentedMessages.push({
+                role: 'assistant',
+                content: toolBuffer,
+              });
+              augmentedMessages.push({
+                role: 'user',
+                content: `[TOOL RESULTS RECEIVED]:\n${toolData}\n\nCRITICAL INSTRUCTION: Synthesize these findings and write your complete, direct, comprehensive answer for the student now in structured markdown. Do NOT output any tool calling syntax or <|...|> tokens.`,
+              });
+
+              toolBuffer = '';
+              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 })) {
+                if (finalChunk.isKeepAlive) {
+                  res.write(': keepalive\n\n');
+                  res.flushHeaders?.();
+                  continue;
+                }
+                const cleaned = cleanChatOutput(finalChunk.content || '');
                 if (cleaned) {
                   res.write(`data: ${JSON.stringify({ delta: cleaned })}\n\n`);
                 }
@@ -1338,7 +1400,15 @@ app.post('/api/ai/chat', async (req, res) => {
         }
 
         // Clean delta of any internal tokens and write
-        const cleaned = chunk.replace(/<\|[^>]*\|>/g, '');
+        const cleaned = textContent.replace(/<\|[^>]*\|>/g, '');
+        if (cleaned) {
+          res.write(`data: ${JSON.stringify({ delta: cleaned })}\n\n`);
+        }
+      }
+
+      // If toolBuffer was collected but never processed as tool call, clean and output it
+      if (toolBuffer && !toolExecuted) {
+        const cleaned = cleanChatOutput(toolBuffer);
         if (cleaned) {
           res.write(`data: ${JSON.stringify({ delta: cleaned })}\n\n`);
         }
@@ -1349,6 +1419,8 @@ app.post('/api/ai/chat', async (req, res) => {
     } catch (e: any) {
       res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
       res.end();
+    } finally {
+      clearInterval(keepAliveTimer);
     }
     return;
   }

@@ -94,11 +94,18 @@ async function* enzonicStream(messages, opts) {
       messages,
       stream: true,
       temperature: opts?.temperature ?? 0.3,
-      max_tokens: opts?.maxTokens ?? 4096
+      max_tokens: opts?.maxTokens ?? 3072
     });
+    let lastActive = Date.now();
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
-      if (delta) yield delta;
+      if (delta) {
+        yield { content: delta };
+        lastActive = Date.now();
+      } else if (Date.now() - lastActive >= 1e3) {
+        yield { isKeepAlive: true };
+        lastActive = Date.now();
+      }
     }
   } catch (err) {
     console.warn("Enzonic stream error, trying fallback:", err?.message);
@@ -116,14 +123,14 @@ async function* enzonicStream(messages, opts) {
           }
         });
         for await (const chunk of responseStream) {
-          if (chunk.text) yield chunk.text;
+          if (chunk.text) yield { content: chunk.text };
         }
         return;
       } catch (geminiErr) {
         console.error("Gemini streaming fallback failed:", geminiErr?.message);
       }
     }
-    yield "Hello! I am your MindPath AI Companion. Let's work together to achieve your academic and career goals!";
+    yield { content: "Hello! I am your MindPath AI Companion. Let's work together to achieve your academic and career goals!" };
   }
 }
 
@@ -2014,10 +2021,10 @@ Provide a structured curriculum with Module 1 (Foundations), Module 2 (Advanced 
   const isGreetingOrCasual = /^(hi|hey|hello|hola|yo|sup|thanks|thank you|thx|k|ok|okay|cool|good morning|good evening|good afternoon|bye|goodbye|who are you|how are you|what is your name)\b[\s!.?]*$/i.test(
     cleanTrimmed
   ) || cleanTrimmed.length < 4 && !cleanTrimmed.includes("?");
-  const isExplicitRealtimeQuery = /\b(search|lookup|find|latest|news|current|2025|2026|today|cutoff|exam|salaries|salary|placement|companies|ranking|trends?|syllabus|dates|eligibility|admissions?|notification)\b/i.test(
+  const isExplicitRealtimeQuery = /\b(search (web|online|internet|for)|lookup|latest|recent|current|2025|2026|today|cutoff|exam dates?|salaries|salary|hiring|trends?|placement|openings|ranking)\b/i.test(
     latestUserMsg
   );
-  const needsWebSearch = searchResults.length === 0 && !isGreetingOrCasual && !/\b(todays? ai|ai models?|llms?|leaderboard)\b/i.test(latestUserMsg) && Boolean(isExplicitRealtimeQuery || enableWebSearch && (latestUserMsg.includes("?") || latestUserMsg.length >= 18));
+  const needsWebSearch = searchResults.length === 0 && !isGreetingOrCasual && !/\b(todays? ai|ai models?|llms?|leaderboard)\b/i.test(latestUserMsg) && Boolean(enableWebSearch && isExplicitRealtimeQuery);
   if (needsWebSearch && latestUserMsg) {
     try {
       searchResults = await performWebSearch(latestUserMsg);
@@ -2065,6 +2072,12 @@ Instructions: You have access to real-time live web search results above. Direct
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders?.();
+    const keepAliveTimer = setInterval(() => {
+      if (!res.writableEnded) {
+        res.write(": keepalive\n\n");
+        res.flushHeaders?.();
+      }
+    }, 2e3);
     try {
       for (const tEvent of toolEvents) {
         res.write(`data: ${JSON.stringify({ toolEvent: tEvent })}
@@ -2075,18 +2088,21 @@ Instructions: You have access to real-time live web search results above. Direct
       const streamIter = enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 });
       let toolExecuted = false;
       for await (const chunk of streamIter) {
-        if (!toolExecuted && (chunk.includes("<|tool_calls_section_begin|>") || chunk.includes("functions.live_web_search") || chunk.trim().startsWith("Tool:"))) {
-          toolBuffer += chunk;
+        if (chunk.isKeepAlive) {
+          res.write(": keepalive\n\n");
+          res.flushHeaders?.();
           continue;
         }
-        if (toolBuffer) {
-          toolBuffer += chunk;
-          if (toolBuffer.includes("<|tool_calls_section_end|>") || toolBuffer.length >= 250) {
+        const textContent = chunk.content || "";
+        if (!textContent) continue;
+        if (!toolExecuted && (textContent.includes("<|") || textContent.includes("functions.") || textContent.trim().startsWith("Tool:"))) {
+          toolBuffer += textContent;
+          if (toolBuffer.includes("<|tool_calls_section_end|>") || toolBuffer.includes("<|tool_call_end|>") || toolBuffer.length >= 200) {
             const tc = extractToolCall(toolBuffer);
             if (tc) {
               toolExecuted = true;
               let toolData = "";
-              if (tc.toolName.includes("search")) {
+              if (tc.toolName.includes("search") || tc.toolName.includes("web")) {
                 res.write(`data: ${JSON.stringify({ toolEvent: { type: "web_search", query: tc.query } })}
 
 `);
@@ -2113,7 +2129,12 @@ CRITICAL INSTRUCTION: Synthesize these findings and write your complete, direct,
               });
               toolBuffer = "";
               for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 })) {
-                const cleaned2 = finalChunk.replace(/<\|[^>]*\|>/g, "");
+                if (finalChunk.isKeepAlive) {
+                  res.write(": keepalive\n\n");
+                  res.flushHeaders?.();
+                  continue;
+                }
+                const cleaned2 = cleanChatOutput(finalChunk.content || "");
                 if (cleaned2) {
                   res.write(`data: ${JSON.stringify({ delta: cleaned2 })}
 
@@ -2125,7 +2146,66 @@ CRITICAL INSTRUCTION: Synthesize these findings and write your complete, direct,
           }
           continue;
         }
-        const cleaned = chunk.replace(/<\|[^>]*\|>/g, "");
+        if (toolBuffer) {
+          toolBuffer += textContent;
+          if (toolBuffer.includes("<|tool_calls_section_end|>") || toolBuffer.includes("<|tool_call_end|>") || toolBuffer.length >= 250) {
+            const tc = extractToolCall(toolBuffer);
+            if (tc) {
+              toolExecuted = true;
+              let toolData = "";
+              if (tc.toolName.includes("search") || tc.toolName.includes("web")) {
+                res.write(`data: ${JSON.stringify({ toolEvent: { type: "web_search", query: tc.query } })}
+
+`);
+                const sr = await performWebSearch(tc.query);
+                toolData = sr.map((r, i) => `[Source ${i + 1}]: "${r.title}"
+${r.snippet}
+URL: ${r.url}`).join("\n\n");
+              } else if (tc.toolName.includes("calc") || tc.toolName.includes("math")) {
+                const calc = solveAcademicCalculation(tc.query);
+                toolData = `Calculation Result: ${calc.result}`;
+              } else {
+                toolData = `Action completed for: ${tc.query}`;
+              }
+              augmentedMessages.push({
+                role: "assistant",
+                content: toolBuffer
+              });
+              augmentedMessages.push({
+                role: "user",
+                content: `[TOOL RESULTS RECEIVED]:
+${toolData}
+
+CRITICAL INSTRUCTION: Synthesize these findings and write your complete, direct, comprehensive answer for the student now in structured markdown. Do NOT output any tool calling syntax or <|...|> tokens.`
+              });
+              toolBuffer = "";
+              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 })) {
+                if (finalChunk.isKeepAlive) {
+                  res.write(": keepalive\n\n");
+                  res.flushHeaders?.();
+                  continue;
+                }
+                const cleaned2 = cleanChatOutput(finalChunk.content || "");
+                if (cleaned2) {
+                  res.write(`data: ${JSON.stringify({ delta: cleaned2 })}
+
+`);
+                }
+              }
+              break;
+            }
+          }
+          continue;
+        }
+        const cleaned = textContent.replace(/<\|[^>]*\|>/g, "");
+        if (cleaned) {
+          res.write(`data: ${JSON.stringify({ delta: cleaned })}
+
+`);
+        }
+      }
+      if (toolBuffer && !toolExecuted) {
+        const cleaned = cleanChatOutput(toolBuffer);
         if (cleaned) {
           res.write(`data: ${JSON.stringify({ delta: cleaned })}
 
@@ -2139,6 +2219,8 @@ CRITICAL INSTRUCTION: Synthesize these findings and write your complete, direct,
 
 `);
       res.end();
+    } finally {
+      clearInterval(keepAliveTimer);
     }
     return;
   }
