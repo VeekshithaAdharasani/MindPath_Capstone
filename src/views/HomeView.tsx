@@ -463,8 +463,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
 
             {/* Heatmap Grid Container - Scrollable on mobile */}
-            <div className="overflow-x-auto pb-2 pt-1 no-scrollbar">
-              <div className="min-w-[620px]">
+            <div className="overflow-x-auto pb-2 pt-1 no-scrollbar px-1">
+              <div className="min-w-[620px] p-1.5">
                 {/* Month header labels */}
                 <div className="grid grid-cols-16 gap-1.5 mb-1.5 pl-6 text-[10px] text-slate-500 font-medium">
                   {weeks.map((_, colIdx) => {
@@ -478,7 +478,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 {/* Day rows (Mon to Sun) */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 pr-1.5">
                   {/* Day of week abbreviations */}
                   <div className="flex flex-col justify-between text-[9px] text-slate-500 font-medium py-0.5 h-[126px] select-none shrink-0 w-5">
                     <span>Mon</span>
@@ -488,7 +488,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </div>
 
                   {/* 16 columns of weeks */}
-                  <div className="grid grid-cols-16 gap-1.5 flex-1">
+                  <div className="grid grid-cols-16 gap-1.5 flex-1 pr-1">
                     {weeks.map((week, wIdx) => (
                       <div key={wIdx} className="flex flex-col gap-1.5">
                         {week.map((day) => {
@@ -511,7 +511,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               onMouseLeave={() => setHoveredDay(null)}
                               onClick={() => setHoveredDay(day)}
                               className={`w-full aspect-square rounded-md border border-white/5 transition-all duration-150 cursor-pointer relative ${cellBg} ${
-                                day.isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-[#14172f]' : ''
+                                day.isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-[#14172f] z-10 shadow-sm shadow-amber-400/40' : ''
                               }`}
                             />
                           );

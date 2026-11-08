@@ -126,11 +126,18 @@ export default function App() {
             .then((res) => res.json())
             .then((attempts) => {
               if (Array.isArray(attempts) && attempts.length > 0) {
-                const scores = attempts.map((a: any) => Math.round((a.score / a.total_questions) * 100));
-                const max = Math.max(...scores);
+                const scores = attempts.map((a: any) => {
+                  const s = Number(a.score) || 0;
+                  const t = Number(a.total_questions) || 5;
+                  if (t > 0 && s <= t) {
+                    return Math.min(100, Math.max(0, Math.round((s / t) * 100)));
+                  }
+                  return Math.min(100, Math.max(0, Math.round(s)));
+                });
+                const max = Math.min(100, Math.max(...scores));
                 const sum = scores.reduce((acc: number, curr: number) => acc + curr, 0);
                 setBestScore(max);
-                setAvgScore(Math.round(sum / scores.length));
+                setAvgScore(Math.min(100, Math.max(0, Math.round(sum / scores.length))));
                 setTestsCount(attempts.length);
               } else {
                 setBestScore(0);
@@ -293,18 +300,31 @@ export default function App() {
   const handleUpdateProfile = async (updated: Partial<UserProfile>): Promise<boolean> => {
     const merged = { ...user, ...updated };
     setUser(merged);
+    localStorage.setItem('mindpath_user', JSON.stringify(merged));
     try {
       const res = await fetch('/api/user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': merged.id || '',
+        },
         body: JSON.stringify({
           name: merged.name,
           email: merged.email,
           educationLevel: merged.educationLevel,
           careerInterest: merged.careerInterest,
           avatarUrl: merged.avatarUrl,
+          location: merged.location || '',
+          targetExam: merged.targetExam || '',
+          bio: merged.bio || '',
         }),
       });
+      if (res.ok) {
+        refreshUserData(merged.id);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('mindpath:refresh-data'));
+        }
+      }
       return res.ok;
     } catch (e) {
       console.error('Update profile error:', e);
@@ -313,10 +333,10 @@ export default function App() {
   };
 
   const handleQuizCompleted = (score: number, total: number) => {
-    const pct = Math.round((score / total) * 100);
-    if (pct > bestScore) setBestScore(pct);
+    const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((score / total) * 100))) : 0;
+    setBestScore((prev) => Math.min(100, Math.max(prev, pct)));
     setTestsCount((c) => c + 1);
-    setAvgScore((prev) => Math.round((prev * testsCount + pct) / (testsCount + 1)));
+    setAvgScore((prev) => Math.min(100, Math.round((prev * testsCount + pct) / (testsCount + 1))));
   };
 
   const handleSignOut = () => {

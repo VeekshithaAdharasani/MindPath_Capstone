@@ -472,19 +472,27 @@ app.get('/api/user', async (req, res) => {
 });
 
 app.post('/api/user', async (req, res) => {
-  const userId = getUserId(req);
+  const userId = await resolveUserId(req);
   try {
     const parsed = ProfileUpdateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.format() });
     }
-    const { name, email, educationLevel, careerInterest, avatarUrl } = parsed.data;
+    const { name, email, educationLevel, careerInterest, avatarUrl, location, targetExam, bio } = parsed.data;
 
     await client.execute({
-      sql: `UPDATE users SET name = ?, email = ?, education_level = ?, career_interest = ?${avatarUrl ? ', avatar_url = ?' : ''} WHERE id = ?`,
-      args: avatarUrl
-        ? [name, email, educationLevel, careerInterest, avatarUrl, userId]
-        : [name, email, educationLevel, careerInterest, userId],
+      sql: `UPDATE users SET name = ?, email = ?, education_level = ?, career_interest = ?${avatarUrl ? ', avatar_url = ?' : ''}${location !== undefined ? ', location = ?' : ''}${targetExam !== undefined ? ', target_exam = ?' : ''}${bio !== undefined ? ', bio = ?' : ''} WHERE id = ?`,
+      args: [
+        name,
+        email,
+        educationLevel,
+        careerInterest,
+        ...(avatarUrl ? [avatarUrl] : []),
+        ...(location !== undefined ? [location] : []),
+        ...(targetExam !== undefined ? [targetExam] : []),
+        ...(bio !== undefined ? [bio] : []),
+        userId,
+      ],
     });
 
     return res.json({ ok: true, message: 'Profile updated in Turso' });

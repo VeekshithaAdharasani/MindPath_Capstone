@@ -173,13 +173,27 @@ export const QuizView: React.FC<QuizViewProps> = ({
     return quizzes.filter((q) => q.category === activeTab);
   }, [activeTab, user?.careerInterest, quizzes]);
 
+  const normalizedAttempts = useMemo(() => {
+    return attempts.map((a) => {
+      const s = Number(a.score) || 0;
+      const t = Number(a.total_questions) || 5;
+      let pct = 0;
+      if (t > 0 && s <= t) {
+        pct = Math.min(100, Math.max(0, Math.round((s / t) * 100)));
+      } else {
+        pct = Math.min(100, Math.max(0, Math.round(s)));
+      }
+      return { ...a, normalizedPct: pct };
+    });
+  }, [attempts]);
+
   const effectiveTestsTaken = Math.max(testsTaken, attempts.length);
-  const effectiveBestScore = attempts.length > 0
-    ? Math.max(...attempts.map((a) => Number(a.score) || 0), bestScore || 0)
-    : (bestScore || 0);
-  const effectiveAvgScore = attempts.length > 0
-    ? Math.round(attempts.reduce((sum, a) => sum + (Number(a.score) || 0), 0) / attempts.length)
-    : (averageScore || 0);
+  const effectiveBestScore = normalizedAttempts.length > 0
+    ? Math.min(100, Math.max(...normalizedAttempts.map((a) => a.normalizedPct), Math.min(100, bestScore || 0)))
+    : Math.min(100, bestScore || 0);
+  const effectiveAvgScore = normalizedAttempts.length > 0
+    ? Math.min(100, Math.max(0, Math.round(normalizedAttempts.reduce((sum, a) => sum + a.normalizedPct, 0) / normalizedAttempts.length)))
+    : Math.min(100, averageScore || 0);
 
   const trackLabel = user?.careerInterest ? `My Track (${user.careerInterest.split(',')[0].trim()})` : 'My Track';
   const tabs = [
@@ -270,7 +284,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 </h2>
               </div>
 
-              {attempts.length === 0 ? (
+              {normalizedAttempts.length === 0 ? (
                 <div className="p-12 text-center rounded-3xl bg-[#14172f] border border-white/10 space-y-3">
                   <Trophy className="w-8 h-8 text-slate-500 mx-auto" />
                   <p className="text-xs text-slate-300">You haven't completed any tests yet.</p>
@@ -283,7 +297,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {attempts.map((att) => (
+                  {normalizedAttempts.map((att) => (
                     <div
                       key={att.id}
                       className="p-5 rounded-3xl bg-[#14172f] border border-white/10 flex flex-col justify-between hover:border-purple-500/40 transition-all shadow-md"
@@ -294,13 +308,13 @@ export const QuizView: React.FC<QuizViewProps> = ({
                             {att.category || 'Assessment'}
                           </span>
                           <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${
-                            att.score >= 80
+                            att.normalizedPct >= 80
                               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                              : att.score >= 60
+                              : att.normalizedPct >= 60
                               ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                               : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                           }`}>
-                            {att.score}% Score
+                            {att.normalizedPct}% Score
                           </span>
                         </div>
 
@@ -387,7 +401,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     </div>
                   ) : filteredQuizzes.length > 0 ? (
                     filteredQuizzes.map((q) => {
-                      const pastAttempt = attempts.find(
+                      const pastAttempt = normalizedAttempts.find(
                         (a) => a.quiz_title.toLowerCase().trim() === q.title.toLowerCase().trim()
                       );
                       const isCompleted = !!pastAttempt;
@@ -417,7 +431,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                                   <div className="absolute top-3 right-3">
                                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 backdrop-blur-md flex items-center gap-1 shadow-sm">
                                       <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                      <span>Completed • {pastAttempt.score}%</span>
+                                      <span>Completed • {pastAttempt.normalizedPct}%</span>
                                     </span>
                                   </div>
                                 )}
@@ -435,8 +449,8 @@ export const QuizView: React.FC<QuizViewProps> = ({
                               </p>
                               {isCompleted && (
                                 <p className="text-[11px] text-emerald-400/90 font-medium mt-2 flex items-center gap-1">
-                                  <span>Latest Score: {pastAttempt.score}%</span>
-                                  {pastAttempt.score >= 80 && <span>🌟 Excellent</span>}
+                                  <span>Latest Score: {pastAttempt.normalizedPct}%</span>
+                                  {pastAttempt.normalizedPct >= 80 && <span>🌟 Excellent</span>}
                                 </p>
                               )}
                             </div>

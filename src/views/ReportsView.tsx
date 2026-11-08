@@ -24,7 +24,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const completedTasks = tasks.filter((t) => t.completed === 1).length;
   const totalTasks = tasks.length;
   const hasData = testsCount > 0 || totalTasks > 0;
-  const totalScorePct = testsCount > 0 ? avgScore : (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
+  const safeBestScore = Math.min(100, Math.max(0, bestScore));
+  const safeAvgScore = Math.min(100, Math.max(0, avgScore));
+  const totalScorePct = testsCount > 0 ? safeAvgScore : (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
   const displayName = user?.name ? user.name.split(' ')[0] : 'Student';
 
   const handleDownload = () => {
@@ -135,25 +137,37 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <h2 className="text-sm font-bold text-white mb-4">Subject Performance</h2>
 
           {testsCount > 0 ? (
-            <div className="h-44 flex items-end justify-around gap-4 px-4 pb-2 border-b border-white/5 my-auto">
-              <div className="flex flex-col items-center gap-2 flex-1">
-                <span className="text-xs font-bold text-purple-400">{bestScore}%</span>
-                <div className="w-full bg-purple-500 rounded-t-xl" style={{ height: `${Math.max(20, bestScore)}px` }} />
+            <div className="h-44 flex items-end justify-around gap-4 px-4 pb-2 border-b border-white/5 my-auto overflow-hidden">
+              <div className="flex flex-col items-center gap-2 flex-1 h-full justify-end">
+                <span className="text-xs font-bold text-purple-400">{safeBestScore}%</span>
+                <div
+                  className="w-full bg-purple-500 rounded-t-xl transition-all duration-500"
+                  style={{ height: `${Math.max(12, Math.min(110, Math.round((safeBestScore / 100) * 110)))}px` }}
+                />
                 <span className="text-[11px] text-slate-300 font-medium">Math</span>
               </div>
-              <div className="flex flex-col items-center gap-2 flex-1">
-                <span className="text-xs font-bold text-cyan-400">{avgScore}%</span>
-                <div className="w-full bg-cyan-500 rounded-t-xl" style={{ height: `${Math.max(20, avgScore)}px` }} />
+              <div className="flex flex-col items-center gap-2 flex-1 h-full justify-end">
+                <span className="text-xs font-bold text-cyan-400">{safeAvgScore}%</span>
+                <div
+                  className="w-full bg-cyan-500 rounded-t-xl transition-all duration-500"
+                  style={{ height: `${Math.max(12, Math.min(110, Math.round((safeAvgScore / 100) * 110)))}px` }}
+                />
                 <span className="text-[11px] text-slate-300 font-medium">Science</span>
               </div>
-              <div className="flex flex-col items-center gap-2 flex-1">
-                <span className="text-xs font-bold text-emerald-400">{bestScore}%</span>
-                <div className="w-full bg-emerald-500 rounded-t-xl" style={{ height: `${Math.max(20, bestScore)}px` }} />
+              <div className="flex flex-col items-center gap-2 flex-1 h-full justify-end">
+                <span className="text-xs font-bold text-emerald-400">{safeBestScore}%</span>
+                <div
+                  className="w-full bg-emerald-500 rounded-t-xl transition-all duration-500"
+                  style={{ height: `${Math.max(12, Math.min(110, Math.round((safeBestScore / 100) * 110)))}px` }}
+                />
                 <span className="text-[11px] text-slate-300 font-medium">Programming</span>
               </div>
-              <div className="flex flex-col items-center gap-2 flex-1">
-                <span className="text-xs font-bold text-amber-400">{avgScore}%</span>
-                <div className="w-full bg-amber-500 rounded-t-xl" style={{ height: `${Math.max(20, avgScore)}px` }} />
+              <div className="flex flex-col items-center gap-2 flex-1 h-full justify-end">
+                <span className="text-xs font-bold text-amber-400">{safeAvgScore}%</span>
+                <div
+                  className="w-full bg-amber-500 rounded-t-xl transition-all duration-500"
+                  style={{ height: `${Math.max(12, Math.min(110, Math.round((safeAvgScore / 100) * 110)))}px` }}
+                />
                 <span className="text-[11px] text-slate-300 font-medium">General</span>
               </div>
             </div>

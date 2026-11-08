@@ -1,22 +1,27 @@
 import {
   AlertTriangle,
   Bell,
+  Camera,
   Check,
+  Compass,
   Database,
   Download,
   Eye,
   EyeOff,
+  GraduationCap,
   Info,
   Key,
   LogOut,
+  MapPin,
   RefreshCw,
   Shield,
   ShieldCheck,
   Smartphone,
+  Sparkles,
   Upload,
   User,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { UserProfile } from '../types/index.ts';
 
 interface SettingsViewProps {
@@ -25,6 +30,54 @@ interface SettingsViewProps {
   onSignOut?: () => void;
 }
 
+const PRESET_AVATARS = [
+  { id: 'alex', label: 'Alex (Tech)', url: '/assets/extracted/alex_avatar.png' },
+  { id: 'arjun', label: 'Arjun (AI)', url: '/assets/extracted/arjun_avatar.png' },
+  { id: 'student1', label: 'Student', url: '/assets/extracted/student1.png' },
+  { id: 'rohan', label: 'Rohan', url: '/assets/extracted/student_rohan.svg' },
+  { id: 'sneha', label: 'Sneha', url: '/assets/extracted/student_sneha.svg' },
+  { id: 'default', label: 'Cyberpunk', url: '/assets/extracted/default_avatar.svg' },
+];
+
+const POPULAR_LOCATIONS = [
+  'Bengaluru, India',
+  'New Delhi, India',
+  'Mumbai, India',
+  'Hyderabad, India',
+  'San Francisco, USA',
+  'London, UK',
+  'Singapore',
+];
+
+const CAREER_SUGGESTIONS = [
+  'AI & Systems Engineering',
+  'GATE CSE 2026',
+  'Full-Stack Web Dev',
+  'Cybersecurity Analyst',
+  'Data Scientist',
+  'Quantitative Developer',
+  'Cloud Architecture',
+  'Robotics & Embedded AI',
+];
+
+const EDUCATION_SUGGESTIONS = [
+  'College Undergrad',
+  'B.Tech / B.E. (CS/IT)',
+  'Class 12 CBSE / State',
+  'Class 11 Science',
+  'Graduate / Working Professional',
+  'Self-Taught Developer',
+];
+
+const EXAM_SUGGESTIONS = [
+  'GATE CSE 2026',
+  'FAANG / MAANG Placements',
+  'JEE Advanced',
+  'AWS Solutions Architect',
+  'UPSC CSE',
+  'GRE / TOEFL Grad School',
+];
+
 export const SettingsView: React.FC<SettingsViewProps> = ({
   user,
   onUpdateProfile,
@@ -32,15 +85,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'Profile Settings' | 'Learning Preferences' | 'Notifications' | 'Privacy & Security' | 'Data Sync' | 'About'>('Profile Settings');
 
-  // Form states
-  const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
-  const [educationLevel, setEducationLevel] = useState(user.educationLevel);
-  const [careerInterest, setCareerInterest] = useState(user.careerInterest);
-  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl);
+  // Form states matching complete onboarding profile
+  const [name, setName] = useState(user.name || '');
+  const [email, setEmail] = useState(user.email || '');
+  const [educationLevel, setEducationLevel] = useState(user.educationLevel || '');
+  const [careerInterest, setCareerInterest] = useState(user.careerInterest || '');
+  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || '/assets/extracted/default_avatar.svg');
+  const [location, setLocation] = useState(user.location || '');
+  const [targetExam, setTargetExam] = useState(user.targetExam || '');
+  const [bio, setBio] = useState(user.bio || '');
+
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync state whenever parent user prop changes (e.g. from DB refresh)
+  useEffect(() => {
+    setName(user.name || '');
+    setEmail(user.email || '');
+    setEducationLevel(user.educationLevel || '');
+    setCareerInterest(user.careerInterest || '');
+    setAvatarUrl(user.avatarUrl || '/assets/extracted/default_avatar.svg');
+    setLocation(user.location || '');
+    setTargetExam(user.targetExam || '');
+    setBio(user.bio || '');
+  }, [user]);
 
   // Learning preferences
   const [dailyTargetMin, setDailyTargetMin] = useState(30);
@@ -67,15 +139,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [recruiterVisibility, setRecruiterVisibility] = useState(false);
   const [downloadingData, setDownloadingData] = useState(false);
 
+  const handleAutoDetectLocation = () => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) {
+        const parts = tz.split('/');
+        const city = parts[parts.length - 1].replace(/_/g, ' ');
+        const region = parts[0];
+        setLocation(`${city}, ${region}`);
+        return;
+      }
+    } catch {}
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLocation(`Lat ${pos.coords.latitude.toFixed(1)}°, Lon ${pos.coords.longitude.toFixed(1)}°`);
+        },
+        () => {
+          setLocation('Global Learner');
+        }
+      );
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     const ok = await onUpdateProfile({
-      name,
-      email,
-      educationLevel,
-      careerInterest,
+      name: name.trim(),
+      email: email.trim(),
+      educationLevel: educationLevel.trim(),
+      careerInterest: careerInterest.trim(),
       avatarUrl,
+      location: location.trim(),
+      targetExam: targetExam.trim(),
+      bio: bio.trim(),
     });
     setSaving(false);
     if (ok) {
@@ -84,48 +182,52 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select a valid image file (PNG, JPG, WebP).');
+      return;
+    }
 
     setUploadError(null);
     setUploadingImage(true);
 
-    try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 256;
+        let width = img.width;
+        let height = img.height;
 
-      const res = await fetch('/api/storage/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id || 'anonymous_user',
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          base64Data: dataUrl,
-          contentType: file.type || 'image/png',
-        }),
-      });
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
 
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Failed to upload image');
-      }
-
-      setAvatarUrl(data.url);
-      await onUpdateProfile({ avatarUrl: data.url });
-    } catch (err: any) {
-      setUploadError(err.message || 'Error uploading image');
-    } finally {
-      setUploadingImage(false);
-    }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setAvatarUrl(dataUrl);
+          setUploadingImage(false);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -292,105 +394,264 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="md:col-span-3 bg-[#10142e] p-6 rounded-2xl border border-white/5">
           {activeTab === 'Profile Settings' && (
             <div className="space-y-6">
-              <h2 className="text-sm font-bold text-white mb-4">Profile Information</h2>
+              <div>
+                <h2 className="text-sm font-bold text-white mb-1">Profile Information</h2>
+                <p className="text-[11px] text-slate-400">
+                  Update your personal details, learning identity, and onboarding preferences synced live to Turso DB.
+                </p>
+              </div>
 
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#181d3d] border border-white/5">
-                <div className="relative group">
-                  <img
-                    src={avatarUrl}
-                    alt={name}
-                    className="w-16 h-16 rounded-full object-cover border-2 border-indigo-500/50 shadow-md bg-[#0c0e1a]"
-                  />
-                  {uploadingImage && (
-                    <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent animate-spin rounded-full" />
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-bold text-white">{name}</h3>
-                  <p className="text-[11px] text-slate-400 mb-2">{email}</p>
-                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-[10px] text-indigo-300 font-semibold transition-all">
-                    <Upload className="w-3 h-3" />
-                    <span>{uploadingImage ? 'Uploading...' : 'Change Profile Picture'}</span>
-                    <input
-                      type="file"
-                      accept="image/png, image/jpeg, image/webp"
-                      className="hidden"
-                      onChange={handleImageFileChange}
-                      disabled={uploadingImage}
+              {/* Avatar Selector and Uploader */}
+              <div className="p-4 rounded-2xl bg-[#14172f] border border-white/10 space-y-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="relative group shrink-0">
+                    <img
+                      src={avatarUrl}
+                      alt={name}
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-purple-500/50 shadow-lg shadow-purple-500/20 bg-slate-800"
                     />
-                  </label>
-                  {uploadError && (
-                    <p className="text-[10px] text-rose-400 mt-1 font-medium">{uploadError}</p>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-purple-600 text-white shadow hover:bg-purple-500 cursor-pointer transition-transform hover:scale-110"
+                      title="Upload custom photo"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageFileChange}
+                      className="hidden"
+                    />
+                  </div>
+
+                  <div className="flex-1 w-full">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-white">Profile Avatar</span>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-400 hover:text-purple-300 cursor-pointer"
+                      >
+                        <Upload className="w-3 h-3" />
+                        <span>Upload Device Photo</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mb-2">Or choose a preset avatar:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PRESET_AVATARS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setAvatarUrl(preset.url)}
+                          className={`relative p-0.5 rounded-xl transition-all cursor-pointer ${
+                            avatarUrl === preset.url
+                              ? 'ring-2 ring-purple-400 scale-105'
+                              : 'opacity-70 hover:opacity-100 hover:scale-105'
+                          }`}
+                          title={preset.label}
+                        >
+                          <img
+                            src={preset.url}
+                            alt={preset.label}
+                            className="w-7 h-7 rounded-lg object-cover bg-slate-800"
+                          />
+                          {avatarUrl === preset.url && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500 flex items-center justify-center text-white">
+                              <Check className="w-2 h-2" />
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+                {uploadError && (
+                  <p className="text-[11px] text-rose-400 font-medium">{uploadError}</p>
+                )}
               </div>
 
               <form onSubmit={handleSave} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-slate-300 font-medium block mb-1.5">Full Name</label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      placeholder="e.g. Alex Kumar"
+                      className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-slate-300 font-medium block mb-1.5">Email Address</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="student@example.com"
+                      className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Location with Auto-Detect */}
                 <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-1.5">Full Name</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Your Location (City, Country)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAutoDetectLocation}
+                      className="text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                    >
+                      ⚡ Auto-Detect Location
+                    </button>
+                  </div>
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Bengaluru, India or San Francisco, USA"
+                    className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                   />
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {POPULAR_LOCATIONS.map((loc) => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() => setLocation(loc)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+                          location === loc
+                            ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400/50'
+                            : 'bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10'
+                        }`}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
+                {/* Target Career Track */}
                 <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-1.5">Email</label>
+                  <label className="text-xs text-slate-300 font-medium flex items-center gap-1.5 mb-1.5">
+                    <Compass className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Target Career Track or Domain</span>
+                  </label>
                   <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-1.5">
-                    Educational Level
-                  </label>
-                  <select
-                    value={educationLevel}
-                    onChange={(e) => setEducationLevel(e.target.value)}
-                    className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
-                  >
-                    <option value="Class 10">Class 10</option>
-                    <option value="Class 11">Class 11</option>
-                    <option value="Class 12">Class 12</option>
-                    <option value="Undergraduate B.Tech">Undergraduate B.Tech</option>
-                    <option value="Graduate M.Tech">Graduate M.Tech</option>
-                    <option value="Working Professional">Working Professional</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-1.5">
-                    Career Interest
-                  </label>
-                  <select
+                    type="text"
                     value={careerInterest}
                     onChange={(e) => setCareerInterest(e.target.value)}
-                    className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
-                  >
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="AI & Machine Learning">AI & Machine Learning</option>
-                    <option value="Data Science">Data Science</option>
-                    <option value="Medical & Bio-Computing">Medical & Bio-Computing</option>
-                    <option value="Software Engineering">Software Engineering</option>
-                  </select>
+                    placeholder="e.g. AI & Systems Engineering, Full-Stack Dev..."
+                    className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {CAREER_SUGGESTIONS.map((sug) => (
+                      <button
+                        key={sug}
+                        type="button"
+                        onClick={() => setCareerInterest(sug)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+                          careerInterest === sug
+                            ? 'bg-purple-600 text-white border border-purple-400 shadow-sm'
+                            : 'bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10'
+                        }`}
+                      >
+                        {sug}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Educational Level */}
+                <div>
+                  <label className="text-xs text-slate-300 font-medium flex items-center gap-1.5 mb-1.5">
+                    <GraduationCap className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Current Educational Level</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={educationLevel}
+                    onChange={(e) => setEducationLevel(e.target.value)}
+                    placeholder="e.g. B.Tech 3rd Year, Class 12 CBSE, Working Professional..."
+                    className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {EDUCATION_SUGGESTIONS.map((sug) => (
+                      <button
+                        key={sug}
+                        type="button"
+                        onClick={() => setEducationLevel(sug)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+                          educationLevel === sug
+                            ? 'bg-cyan-600 text-white border border-cyan-400 shadow-sm'
+                            : 'bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10'
+                        }`}
+                      >
+                        {sug}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Target Exam or Milestone */}
+                <div>
+                  <label className="text-xs text-slate-300 font-medium flex items-center gap-1.5 mb-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Target Exam or Milestone (Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={targetExam}
+                    onChange={(e) => setTargetExam(e.target.value)}
+                    placeholder="e.g. GATE 2026, FAANG Placements, JEE Advanced..."
+                    className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {EXAM_SUGGESTIONS.map((exam) => (
+                      <button
+                        key={exam}
+                        type="button"
+                        onClick={() => setTargetExam(exam)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+                          targetExam === exam
+                            ? 'bg-amber-500/30 text-amber-200 border border-amber-400/50 shadow-sm'
+                            : 'bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10'
+                        }`}
+                      >
+                        {exam}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Learning Motto or Short Bio */}
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1.5">
+                    Learning Motto or Short Bio (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="e.g. Aspiring AI engineer aiming for top tier research & FAANG"
+                    className="w-full bg-[#181d3d] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-none"
+                  />
                 </div>
 
                 <div className="pt-3 flex items-center justify-between">
                   {savedSuccess ? (
-                    <span className="text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
+                    <span className="text-xs text-emerald-400 flex items-center gap-1.5 font-medium animate-in fade-in">
                       <Check className="w-4 h-4" />
-                      <span>Changes saved successfully!</span>
+                      <span>Changes saved &amp; synced to Turso Cloud DB!</span>
                     </span>
                   ) : (
                     <span />
@@ -399,9 +660,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-xs font-bold text-white shadow-lg shadow-purple-500/20 disabled:opacity-50 transition-all cursor-pointer"
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-xs font-bold text-white shadow-lg shadow-purple-500/20 disabled:opacity-50 transition-all cursor-pointer hover:scale-105 active:scale-95"
                   >
-                    {saving ? 'Saving...' : 'Save Changes'}
+                    {saving ? 'Saving...' : 'Save & Sync Settings'}
                   </button>
                 </div>
               </form>
