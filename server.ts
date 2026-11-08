@@ -963,6 +963,7 @@ function cleanChatOutput(text: string): string {
 app.post('/api/ai/chat', async (req, res) => {
   const userId = getUserId(req);
   const { messages, stream, temperature, maxTokens, responseFormat, enableWebSearch, attachments } = req.body;
+  const reasoningEffort = req.body.reasoningEffort || 'medium';
 
   if (!messages?.length) {
     return res.status(400).json({ error: 'messages required' });
@@ -1293,7 +1294,7 @@ app.post('/api/ai/chat', async (req, res) => {
       }
 
       let toolBuffer = '';
-      const streamIter = enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 });
+      const streamIter = enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048, reasoningEffort });
       let toolExecuted = false;
 
       for await (const chunk of streamIter) {
@@ -1336,7 +1337,7 @@ app.post('/api/ai/chat', async (req, res) => {
               });
 
               toolBuffer = '';
-              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 })) {
+              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048, reasoningEffort })) {
                 if (finalChunk.isKeepAlive) {
                   res.write(': keepalive\n\n');
                   res.flushHeaders?.();
@@ -1382,7 +1383,7 @@ app.post('/api/ai/chat', async (req, res) => {
               });
 
               toolBuffer = '';
-              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 })) {
+              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048, reasoningEffort })) {
                 if (finalChunk.isKeepAlive) {
                   res.write(': keepalive\n\n');
                   res.flushHeaders?.();
@@ -1425,7 +1426,7 @@ app.post('/api/ai/chat', async (req, res) => {
     return;
   }
 
-  let result: any = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, responseFormat });
+  let result: any = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, reasoningEffort, responseFormat });
   if (result.ok && result.data?.choices?.[0]?.message?.content) {
     const rawContent = result.data.choices[0].message.content;
     const tc = extractToolCall(rawContent);
@@ -1442,7 +1443,7 @@ app.post('/api/ai/chat', async (req, res) => {
         role: 'user',
         content: `[TOOL RESULTS RECEIVED]:\n${toolData}\n\nCRITICAL INSTRUCTION: Provide your complete, direct, comprehensive answer for the student now in structured markdown. Do NOT output any tool calling syntax.`,
       });
-      result = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, responseFormat });
+      result = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, reasoningEffort, responseFormat });
     }
 
     if (result.ok && result.data?.choices?.[0]?.message?.content) {
@@ -1485,6 +1486,7 @@ Analyze this option and return JSON matching:
       ],
       responseFormat: { type: 'json_object' },
       temperature: 0.2,
+      reasoningEffort: 'medium',
     });
 
     const dataObj: any = result.data;

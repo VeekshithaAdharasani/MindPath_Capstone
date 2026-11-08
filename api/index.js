@@ -36,6 +36,7 @@ async function enzonicChat({
   stream = false,
   temperature = 0.3,
   maxTokens = 4096,
+  reasoningEffort = "medium",
   responseFormat
 }) {
   try {
@@ -45,6 +46,7 @@ async function enzonicChat({
       stream,
       temperature,
       max_tokens: maxTokens,
+      reasoning_effort: reasoningEffort,
       response_format: responseFormat
     });
     return { ok: true, data: completion };
@@ -60,7 +62,10 @@ async function enzonicChat({
           contents: userPrompt,
           config: {
             systemInstruction: systemPrompt || void 0,
-            temperature
+            temperature,
+            thinkingConfig: {
+              thinkingBudget: reasoningEffort === "low" ? 1024 : reasoningEffort === "high" ? 4096 : 2048
+            }
           }
         });
         const content = response.text || "";
@@ -88,13 +93,15 @@ async function enzonicChat({
   }
 }
 async function* enzonicStream(messages, opts) {
+  const reasoningEffort = opts?.reasoningEffort ?? "medium";
   try {
     const stream = await enzonic.chat.completions.create({
       model: ENZONIC_MODEL,
       messages,
       stream: true,
       temperature: opts?.temperature ?? 0.3,
-      max_tokens: opts?.maxTokens ?? 3072
+      max_tokens: opts?.maxTokens ?? 3072,
+      reasoning_effort: reasoningEffort
     });
     let lastActive = Date.now();
     for await (const chunk of stream) {
@@ -119,7 +126,10 @@ async function* enzonicStream(messages, opts) {
           contents: userPrompt,
           config: {
             systemInstruction: systemPrompt || void 0,
-            temperature: opts?.temperature ?? 0.3
+            temperature: opts?.temperature ?? 0.3,
+            thinkingConfig: {
+              thinkingBudget: reasoningEffort === "low" ? 1024 : reasoningEffort === "high" ? 4096 : 2048
+            }
           }
         });
         for await (const chunk of responseStream) {
@@ -1731,6 +1741,7 @@ function cleanChatOutput(text2) {
 app.post("/api/ai/chat", async (req, res) => {
   const userId = getUserId(req);
   const { messages, stream, temperature, maxTokens, responseFormat, enableWebSearch, attachments } = req.body;
+  const reasoningEffort = req.body.reasoningEffort || "medium";
   if (!messages?.length) {
     return res.status(400).json({ error: "messages required" });
   }
@@ -2085,7 +2096,7 @@ Instructions: You have access to real-time live web search results above. Direct
 `);
       }
       let toolBuffer = "";
-      const streamIter = enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 });
+      const streamIter = enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048, reasoningEffort });
       let toolExecuted = false;
       for await (const chunk of streamIter) {
         if (chunk.isKeepAlive) {
@@ -2128,7 +2139,7 @@ ${toolData}
 CRITICAL INSTRUCTION: Synthesize these findings and write your complete, direct, comprehensive answer for the student now in structured markdown. Do NOT output any tool calling syntax or <|...|> tokens.`
               });
               toolBuffer = "";
-              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 })) {
+              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048, reasoningEffort })) {
                 if (finalChunk.isKeepAlive) {
                   res.write(": keepalive\n\n");
                   res.flushHeaders?.();
@@ -2179,7 +2190,7 @@ ${toolData}
 CRITICAL INSTRUCTION: Synthesize these findings and write your complete, direct, comprehensive answer for the student now in structured markdown. Do NOT output any tool calling syntax or <|...|> tokens.`
               });
               toolBuffer = "";
-              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048 })) {
+              for await (const finalChunk of enzonicStream(augmentedMessages, { temperature: temperature ?? 0.3, maxTokens: maxTokens ?? 2048, reasoningEffort })) {
                 if (finalChunk.isKeepAlive) {
                   res.write(": keepalive\n\n");
                   res.flushHeaders?.();
@@ -2224,7 +2235,7 @@ CRITICAL INSTRUCTION: Synthesize these findings and write your complete, direct,
     }
     return;
   }
-  let result = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, responseFormat });
+  let result = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, reasoningEffort, responseFormat });
   if (result.ok && result.data?.choices?.[0]?.message?.content) {
     const rawContent = result.data.choices[0].message.content;
     const tc = extractToolCall(rawContent);
@@ -2246,7 +2257,7 @@ ${toolData}
 
 CRITICAL INSTRUCTION: Provide your complete, direct, comprehensive answer for the student now in structured markdown. Do NOT output any tool calling syntax.`
       });
-      result = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, responseFormat });
+      result = await enzonicChat({ messages: augmentedMessages, temperature, maxTokens, reasoningEffort, responseFormat });
     }
     if (result.ok && result.data?.choices?.[0]?.message?.content) {
       result.data.choices[0].message.content = cleanChatOutput(result.data.choices[0].message.content);
@@ -2283,7 +2294,8 @@ Analyze this option and return JSON matching:
         { role: "user", content: prompt }
       ],
       responseFormat: { type: "json_object" },
-      temperature: 0.2
+      temperature: 0.2,
+      reasoningEffort: "medium"
     });
     const dataObj = result.data;
     if (result.ok && dataObj?.choices?.[0]?.message?.content) {

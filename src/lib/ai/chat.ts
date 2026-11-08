@@ -6,17 +6,21 @@ export interface ChatMessage {
   content: string | any[];
 }
 
+export type ReasoningEffort = 'low' | 'medium' | 'high';
+
 export async function enzonicChat({
   messages,
   stream = false,
   temperature = 0.3,
   maxTokens = 4096,
+  reasoningEffort = 'medium',
   responseFormat,
 }: {
   messages: ChatMessage[];
   stream?: boolean;
   temperature?: number;
   maxTokens?: number;
+  reasoningEffort?: ReasoningEffort;
   responseFormat?: { type: 'json_object' | 'text' };
 }) {
   try {
@@ -26,6 +30,7 @@ export async function enzonicChat({
       stream,
       temperature,
       max_tokens: maxTokens,
+      reasoning_effort: reasoningEffort,
       response_format: responseFormat,
     });
     return { ok: true, data: completion };
@@ -44,6 +49,9 @@ export async function enzonicChat({
           config: {
             systemInstruction: systemPrompt || undefined,
             temperature,
+            thinkingConfig: {
+              thinkingBudget: reasoningEffort === 'low' ? 1024 : reasoningEffort === 'high' ? 4096 : 2048,
+            },
           },
         });
         const content = response.text || '';
@@ -79,8 +87,9 @@ export interface StreamChunk {
 
 export async function* enzonicStream(
   messages: ChatMessage[],
-  opts?: { temperature?: number; maxTokens?: number }
+  opts?: { temperature?: number; maxTokens?: number; reasoningEffort?: ReasoningEffort }
 ): AsyncGenerator<StreamChunk, void, unknown> {
+  const reasoningEffort = opts?.reasoningEffort ?? 'medium';
   try {
     const stream = await enzonic.chat.completions.create({
       model: ENZONIC_MODEL,
@@ -88,6 +97,7 @@ export async function* enzonicStream(
       stream: true,
       temperature: opts?.temperature ?? 0.3,
       max_tokens: opts?.maxTokens ?? 3072,
+      reasoning_effort: reasoningEffort,
     });
 
     let lastActive = Date.now();
@@ -117,6 +127,9 @@ export async function* enzonicStream(
           config: {
             systemInstruction: systemPrompt || undefined,
             temperature: opts?.temperature ?? 0.3,
+            thinkingConfig: {
+              thinkingBudget: reasoningEffort === 'low' ? 1024 : reasoningEffort === 'high' ? 4096 : 2048,
+            },
           },
         });
         for await (const chunk of responseStream) {

@@ -80,6 +80,7 @@ export function useEnzonicChat() {
               messages,
               stream: true,
               temperature: 0.3,
+              reasoningEffort: 'medium',
               enableWebSearch,
               attachments,
             }),
