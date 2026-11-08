@@ -144,3 +144,4 @@ sequenceDiagram
   UI->>UI: Dispatch mindpath:refresh-data (Reminders View updates live)
   UI-->>Student: Display response & active reminder badge
 ```
+

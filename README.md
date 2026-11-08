@@ -16,9 +16,9 @@
 [![Security Audit](https://img.shields.io/badge/Security_Audit-25%2F25_Passed-brightgreen?logo=shield)](./tests/audit.ts)
 [![Production](https://img.shields.io/badge/Deployed-Vercel_Production-000000?logo=vercel&logoColor=white)](https://mindpath-blue.vercel.app)
 
-**MindPath** is a full-stack, enterprise-hardened AI educational companion engineered for ambitious learners. Built with modern React 19, Express, Turso Cloud DB, and Cloudflare R2, it combines frontier AI intelligence (NVIDIA Nemotron-3 Ultra 550B via Enzonic) with a multi-source educational pipeline spanning YouTube, Internet Archive, GitHub, arXiv, Crossref, OpenAlex, MIT OpenCourseWare, Open edX, OpenStax, and Wikimedia.
+**MindPath** is a full-stack, enterprise-grade AI educational companion engineered for ambitious learners. Built with modern React 19, Express, Turso Cloud DB, and Cloudflare R2, it combines frontier AI intelligence (NVIDIA Nemotron-3 Ultra 550B via Enzonic) with a multi-source educational pipeline spanning YouTube, Internet Archive, GitHub, arXiv, Crossref, OpenAlex, MIT OpenCourseWare, Open edX, OpenStax, and Wikimedia.
 
-[🌐 Live Production Website](https://mindpath-blue.vercel.app) • [Live Alternative](https://mindpath-live.vercel.app)
+[🌐 Live Production Website](https://mindpath-blue.vercel.app) • [Live Alternative](https://mindpath-live.vercel.app) • [Agent Technical Specification](AGENT.md)
 
 </div>
 
@@ -28,8 +28,9 @@
 
 ### 1. 🤖 Autonomous Multimodal AI Companion
 - **Live Multimodal Vision & File Analysis**: Upload PDF notes, problem sheets, and coding screenshots stored on Cloudflare R2 and analyzed by frontier vision models.
-- **Academic Tool Execution**: Directly computes mathematical calculations with a deterministic zero-eval AST parser, performs live web queries, schedules study reminders, and tracks skill gaps.
-- **Heartbeat Hearty Streaming & Persistence**: Real-time conversation streaming with scannable markdown, code syntax highlighting, and persistent synchronization to Turso Cloud DB.
+- **Bi-Directional Database Tools**: The companion directly schedules reminders, adds study tasks, clears completed goals, and records diagnostic quiz results into Turso Cloud DB with zero hallucination.
+- **Deterministic Academic Calculator**: Solves complex mathematical, calculus, physics, and CGPA formulas via a zero-eval AST parser.
+- **Heartbeat Streaming & Persistence**: Real-time conversation streaming with scannable markdown, code syntax highlighting, and persistent synchronization to Turso Cloud DB.
 
 ### 2. 🚀 100% Live AI Career Guidance & Blueprints
 - **Zero Hardcoded Data**: All career tracks, salary benchmarks (INR & USD), and market demand trajectories across Tech, Science, Medicine, Business, and Arts are synthesized on demand by frontier AI models.
@@ -37,9 +38,9 @@
 - **What-If Scenario Modeling**: Simulate how shifts in study hours, target exams, and skill masteries impact placement readiness scores and timeline projections.
 
 ### 3. 📚 Multi-Source Educational Search Pipeline
-One search query concurrently pulls high-signal educational materials across 10 global platforms:
-- **YouTube Data API v3**: Verified video masterclasses and full tutorial series.
-- **Internet Archive**: Filtered historical educational lectures and films.
+One search query concurrently pulls high-signal educational materials across 10 global platforms with automated sanitization:
+- **YouTube Data API v3**: Verified video masterclasses with ad-free responsive modal video players.
+- **Internet Archive**: Filtered historical educational lectures and university archives.
 - **GitHub**: Curated open-source courses, learning repositories, and roadmaps.
 - **arXiv & Crossref**: Peer-reviewed scientific literature and computer science papers.
 - **OpenAlex**: Open-access academic works and citation graphs.
@@ -48,76 +49,42 @@ One search query concurrently pulls high-signal educational materials across 10 
 - **Wikimedia**: Conceptual encyclopedic breakdowns.
 
 ### 4. 🎯 Diagnostic Mock Assessments & Gamification
-- **Infinite AI Topic Quizzes**: Formulates custom 5 to 10 question diagnostic tests tailored to any student interest.
-- **Immediate Diagnostics**: Detailed solution rationales, weak spot identification, score metrics, and study streak rewards.
+- **Live AI-Generated Quizzes**: Instant multi-question timed diagnostic assessments tailored to your exact career interest.
+- **Persistent Quiz History & Attempts**: Scores, time limits, and weak topics are recorded in Turso DB with completion badges (`✓ Completed • 85%`) and instant retake options.
+- **Study Streak & Habit Tracking**: Automatic study streak logging, dynamic heatmap activity grid, and performance growth curves.
 
 ---
 
-## 🏗️ Architecture & Data Flow
+## 🏛️ System Architecture
 
 ```mermaid
-flowchart TD
-    subgraph Client["Frontend Client (React 19 + Vite + Tailwind v4)"]
-        UI["MindPath Dashboard & Views"]
-        ChatDrawer["AI Companion & Multimodal Drawer"]
-        CareerEngine["Live Career & What-If Studio"]
-        CoursePlayer["Course & Lesson Visualizer"]
-    end
+graph TD
+  User([Student Client - React 19]) --> CDN[Vercel Global Edge CDN]
+  CDN --> SPA[Single Page App + Vite Chunk Reload Guard]
+  CDN --> API[Express Serverless Functions]
 
-    subgraph Server["Backend Server (Express + Node.js / Vercel Serverless)"]
-        API["Express API Gateway with Security Headers & Rate Limits"]
-        AuthMiddleware["scrypt Password Hashing & Timing-Safe Verification"]
-        Pipeline["Multi-Source Course Pipeline Orchestrator"]
-        AIBridge["Enzonic / NVIDIA Frontier 550B AI Bridge"]
-    end
+  subgraph AI & Tool Execution Layer
+    API --> AICompanion[Autonomous MindPath AI Companion]
+    AICompanion --> Enzonic[Enzonic Gateway / NVIDIA Nemotron-3 550B]
+    AICompanion --> MathAST[Deterministic Academic Math AST Solver]
+    AICompanion --> WebSearch[Real-Time Live Web Search]
+    AICompanion --> SkillGap[Skill Gap & Mock Interview Engine]
+  end
 
-    subgraph Data["Cloud Data & Storage Layer"]
-        Turso[("Turso Cloud libSQL Database\nUsers, Tasks, Reminders, Quizzes,\nChat Sessions, Enrollments, Cache")]
-        R2[("Cloudflare R2 Object Storage\nNotes, Screenshots & Avatars")]
-    end
+  subgraph Multi-Source Educational Pipeline
+    API --> CourseAggregator[Course & Video Aggregator]
+    CourseAggregator --> YouTube[YouTube Data API v3]
+    CourseAggregator --> GitHubAPI[GitHub Search API]
+    CourseAggregator --> ArchiveOrg[Internet Archive]
+    CourseAggregator --> ArXivAPI[arXiv Preprint Server]
+    CourseAggregator --> OpenAlexAPI[OpenAlex & Crossref Works]
+    CourseAggregator --> OpenEdxAPI[MIT OCW, Open edX & OpenStax]
+  end
 
-    subgraph External["External Knowledge Sources"]
-        YT["YouTube Data API v3"]
-        EduAPIs["arXiv / Crossref / OpenAlex / GitHub"]
-        CourseWare["MIT OCW / Open edX / OpenStax"]
-    end
-
-    UI -->|JSON API Requests| API
-    ChatDrawer -->|SSE / REST Chat & Tool Calls| API
-    CareerEngine -->|POST /api/career/*| API
-    CoursePlayer -->|GET /api/courses| API
-
-    API --> Turso
-    API --> R2
-    API --> AIBridge
-    Pipeline --> YT
-    Pipeline --> EduAPIs
-    Pipeline --> CourseWare
-```
-
----
-
-## 🛡️ Enterprise Security & Penetration Testing
-
-MindPath implements a zero-trust security architecture audited with an automated 25-point penetration testing suite:
-
-| # | Control | Description | Status |
-|:---|:---|:---|:---:|
-| 1 | **Secret Masking** | Zero hardcoded R2 credentials, API tokens, or keys in source code | ✅ Verified |
-| 2 | **Security Headers** | `X-Powered-By: disabled`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN` | ✅ Verified |
-| 3 | **XSS & SVG Defense** | Malicious `image/svg+xml` scripts and fake MIME vectors rejected with `400 Bad Request` | ✅ Verified |
-| 4 | **File Magic Bytes** | Polyglot webshells and forged file headers blocked at the binary level | ✅ Verified |
-| 5 | **DOS File Limit** | Enforced 2MB file size ceiling on R2 uploads | ✅ Verified |
-| 6 | **Deterministic Math** | Academic solver uses strict AST math evaluation with zero `eval()` or process execution | ✅ Verified |
-| 7 | **IDOR Mitigation** | Task toggles, lesson progress, and reminder states are strictly user-scoped | ✅ Verified |
-| 8 | **Input Validation** | Zod schemas and length limiters enforce valid emails, usernames, and scenarios | ✅ Verified |
-| 9 | **Password Cryptography** | Salted `scrypt` hashing with constant-time `timingSafeEqual` comparison | ✅ Verified |
-| 10 | **SQL Injection Guard** | Parameterized SQL queries on all Turso Cloud operations | ✅ Verified |
-| 11 | **Reverse Proxy Guard** | `trust proxy` enabled with rate limiting across `/api/` endpoints | ✅ Verified |
-
-Run the full penetration suite locally or against production:
-```bash
-bun tests/audit.ts
+  subgraph Persistence & Object Storage
+    API --> TursoDB[(Turso Cloud DB - libSQL)]
+    API --> CloudflareR2[(Cloudflare R2 Object Storage)]
+  end
 ```
 
 ---
@@ -126,99 +93,111 @@ bun tests/audit.ts
 
 ```
 MindPath/
-├── api/                  # Vercel serverless bundled entrypoint (api/index.js)
-├── public/               # Static assets, SVG artwork, and icons
+├── AGENT.md                  # Comprehensive AI Agent Specification & Tool Reference
+├── api/
+│   └── index.js              # Bundled Node.js ESM serverless entrypoint for Vercel
+├── dist/                     # Optimized client production bundle
+├── public/
+│   └── assets/               # 4K SVG artwork, high-resolution heroes & icons
 ├── src/
-│   ├── components/       # Reusable UI components
-│   │   ├── auth/         # Account creation & auth modals
-│   │   ├── brand/        # MindPath 3D isometric cube logo & badges
-│   │   ├── career/       # What-if scenario analysis modal
-│   │   ├── companion/    # Multimodal companion drawer & markdown engine
-│   │   ├── learning/     # Embedded course player & lesson trackers
-│   │   └── quiz/         # Interactive test taker modal
-│   ├── hooks/            # Custom React hooks (useEnzonicChat, etc.)
+│   ├── components/
+│   │   ├── auth/             # Sign-in & account creation modals
+│   │   ├── brand/            # Futuristic gradient cube brand SVGs
+│   │   ├── career/           # What-If career simulator modals
+│   │   ├── companion/        # AI Companion drawer with streaming SSE
+│   │   ├── layout/           # Sticky fixed sidebar, navigation header
+│   │   ├── learning/         # Responsive course player modal
+│   │   ├── onboarding/       # 3-step interactive onboarding wizard
+│   │   └── quiz/             # Interactive quiz challenge modal
 │   ├── lib/
-│   │   ├── ai/           # Tool schemas, system prompts & Enzonic connector
-│   │   ├── db/           # Turso libSQL schema, migrations & seeders
-│   │   ├── pipeline/     # Multi-source course aggregator pipeline
-│   │   ├── services/     # Scrapers & API clients (YouTube, arXiv, MIT OCW, etc.)
-│   │   └── storage/      # Cloudflare R2 S3 client & magic bytes validator
-│   ├── types/            # TypeScript interfaces & domain models
-│   ├── views/            # Main application tab views (Home, Career, Learning, Quiz...)
-│   ├── App.tsx           # Application root & tab navigator
-│   └── main.tsx          # React 19 mount point
-├── server.ts             # Express production server & API route handlers
+│   │   ├── ai/               # Tools, prompt injection, and math solver
+│   │   ├── db/               # Turso libSQL schema and migration routines
+│   │   ├── pipeline/         # 10-source course & video aggregator
+│   │   ├── services/         # Upstream API integrations
+│   │   └── storage/          # Cloudflare R2 presigned upload client
+│   ├── views/                # Full views: Home, Career, Learning, Quizzes, etc.
+│   ├── App.tsx               # Root app with session management
+│   └── main.tsx              # React 19 entry with chunk load auto-recovery
 ├── tests/
-│   └── audit.ts          # Comprehensive 25-point penetration testing harness
-├── package.json          # Dependencies & build scripts
-└── vercel.json           # Vercel cloud deployment configuration
+│   └── audit.ts              # 25-point comprehensive security and pentest suite
+├── server.ts                 # Express TypeScript API server
+└── vercel.json               # Vercel deployment and caching rules
 ```
 
 ---
 
-## ⚡ Quick Start
+## ⚡ Getting Started
 
 ### Prerequisites
-- [Bun](https://bun.sh/) (recommended) or [Node.js](https://nodejs.org/) (v20+)
-- [Turso CLI](https://docs.turso.tech/cli/introduction) or a Turso database URL
-- Cloudflare R2 bucket credentials
+- [Bun](https://bun.sh/) (v1.1+) or Node.js (v20+)
+- Turso Database Account & Cloud Token
 
-### 1. Clone & Install
+### Installation
 ```bash
+# Clone the repository
 git clone https://github.com/Aztech-1729/mindpath.git
 cd mindpath
+
+# Install dependencies
 bun install
 ```
 
-### 2. Configure Environment (`.env`)
+### Environment Configuration
+Create a `.env` file in the project root:
 ```ini
 # Turso Cloud Database
-TURSO_DATABASE_URL="libsql://nova-ai-aztech1729.aws-ap-south-1.turso.io"
-TURSO_AUTH_TOKEN="your-turso-token"
+TURSO_DATABASE_URL="libsql://your-database.turso.io"
+TURSO_AUTH_TOKEN="your-turso-auth-token"
 
-# Cloudflare R2 Storage
-R2_ACCOUNT_ID="ab2af3d71ef8359a0eb12fed2d7919d5"
-R2_ACCESS_KEY_ID="your-access-key-id"
-R2_SECRET_ACCESS_KEY="your-secret-access-key"
-R2_BUCKET_NAME="nova-ai"
-R2_ENDPOINT="https://ab2af3d71ef8359a0eb12fed2d7919d5.r2.cloudflarestorage.com"
+# Frontier AI Intelligence
+ENZONIC_API_KEY="your-enzonic-api-key"
+ENZONIC_BASE_URL="https://api.enzonic.com/v1"
 
-# Frontier AI (NVIDIA Nemotron 550B via Enzonic)
-ENZONIC_ROTATOR_URL="http://sgp-two.enzonic.com:25836/v1"
-ENZONIC_API_KEY="dummy-key-for-sdk"
-ENZONIC_MODEL="nvidia/nemotron-3-ultra-550b-a55b"
-ENZONIC_STATUS_URL="http://sgp-two.enzonic.com:25836/status"
+# YouTube Data API
+YOUTUBE_API_KEY="your-youtube-api-key"
 
-# YouTube Data API v3
-YOUTUBE_API_KEY="your-google-cloud-youtube-api-key"
+# Cloudflare R2 Storage (Optional)
+R2_ACCOUNT_ID="your-cloudflare-account-id"
+R2_ACCESS_KEY_ID="your-r2-access-key-id"
+R2_SECRET_ACCESS_KEY="your-r2-secret-access-key"
+R2_BUCKET_NAME="mindpath-uploads"
 ```
 
-### 3. Development Server
+### Development & Verification
 ```bash
-bun run dev
-```
-Navigate to `http://localhost:3000` in your browser.
+# Typecheck & Biome Linter
+bun run check
 
-### 4. Production Build & Check
-```bash
-bun run check     # Typecheck (tsc) + Biome linter
-bun run build     # Vite client build + esbuild server bundle
-bun tests/audit.ts # Run security audit
+# Full Security Audit & Pentest (25/25 Controls)
+bun tests/audit.ts
+
+# Production Build
+bun run build
 ```
 
 ---
 
-## 🚀 Deployment
+## 🔒 Security Audit & Hardening
 
-The project is pre-configured for one-command deployment to **Vercel**:
+MindPath has undergone rigorous penetration testing across 25 distinct security controls verified by [`tests/audit.ts`](./tests/audit.ts):
 
-```bash
-npx vercel --prod
-```
-
-All API routes run as Vercel serverless functions compiled from `server.ts` into `api/index.js`, while client assets are served via Vercel's global CDN.
+| Category | Defense Mechanism | Status |
+| :--- | :--- | :---: |
+| **Authentication** | Passwords hashed using `crypto.scrypt` with constant-time `timingSafeEqual` | ✅ Verified |
+| **Database Isolation** | 100% parameterized SQL statements across all endpoints | ✅ Verified |
+| **Input Sanitization** | HTML injection, `<script>`, and malformed payloads sanitized prior to storage | ✅ Verified |
+| **Content Security** | Strict MIME verification, magic-byte checks on image uploads, rejection of webshells | ✅ Verified |
+| **Network Protection** | Disabled `X-Powered-By`, enforced `X-Content-Type-Options: nosniff` and `X-Frame-Options` | ✅ Verified |
+| **Vite Chunk Guard** | Client-side `vite:preloadError` listener automatically reloads stale deployment chunks | ✅ Verified |
 
 ---
 
 ## 📄 License
-Released under the **MIT License**. Created by [Aztech-1729](https://github.com/Aztech-1729).
+
+This project is licensed under the [Apache-2.0 License](./LICENSE).
+
+---
+
+<div align="center">
+<b>Empowering the next generation of engineers, doctors, and scientists with autonomous AI mentorship.</b>
+</div>
