@@ -118,6 +118,7 @@ export interface CourseItem {
     | 'openstax';
   url: string;
   stars?: number;
+  views?: number;
   language?: string;
   modules?: CourseModule[];
 }

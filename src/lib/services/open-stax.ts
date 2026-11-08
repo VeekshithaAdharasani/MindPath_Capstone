@@ -14,12 +14,18 @@ export async function searchOpenStax(query: string, limit = 10): Promise<any[]> 
 
     while (match && count < limit) {
       const url = match[1].startsWith('http') ? match[1] : `https://openstax.org${match[1]}`;
-      const title = match[2].replace(/<[^>]*>/g, '').trim();
-      if (title && url) {
+      const rawTitle = match[2].replace(/<[^>]*>/g, '').replace(/&[a-z0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+      if (
+        rawTitle.length > 3 &&
+        rawTitle.length < 120 &&
+        !rawTitle.includes('{') &&
+        !rawTitle.toLowerCase().includes('script') &&
+        url
+      ) {
         books.push({
           id: `openstax-${url.split('/').filter(Boolean).pop()}`,
-          title: title || 'OpenStax Textbook',
-          description: 'OpenStax - Free peer-reviewed textbook',
+          title: rawTitle,
+          description: `${rawTitle} - Peer-reviewed, open-licensed college textbook from OpenStax.`,
           url,
           source: 'openstax' as const,
           type: 'course' as const,

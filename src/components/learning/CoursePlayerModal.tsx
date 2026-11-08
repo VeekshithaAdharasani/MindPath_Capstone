@@ -8,20 +8,38 @@ import {
   Clock,
   Code2,
   Copy,
+  ExternalLink,
   Sparkles,
   X,
 } from 'lucide-react';
-import React, { useState } from 'react';
-import { Course, Lesson } from '../../data/coursesData.ts';
+import React, { useMemo, useState } from 'react';
+import { Course, CourseModule, Lesson } from '../../data/coursesData.ts';
 import { MarkdownMessage } from '../companion/MarkdownMessage.tsx';
 
+interface PlayableCourse extends Partial<Course> {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  level?: string;
+  source?: string;
+  url?: string;
+  modules?: CourseModule[];
+}
+
 interface CoursePlayerModalProps {
-  course: Course;
+  course: PlayableCourse;
   isOpen: boolean;
   onClose: () => void;
   onOpenCompanion: (initialMessage?: string) => void;
   completedLessonIds: string[];
   onToggleLessonComplete: (courseId: string, lessonId: string) => void;
+}
+
+function extractYouTubeVideoId(url?: string): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/i);
+  return match ? match[1] : null;
 }
 
 export const CoursePlayerModal: React.FC<CoursePlayerModalProps> = ({
@@ -32,13 +50,67 @@ export const CoursePlayerModal: React.FC<CoursePlayerModalProps> = ({
   completedLessonIds,
   onToggleLessonComplete,
 }) => {
-  const allLessons: Lesson[] = course.modules.flatMap((m) => m.lessons);
+  const youtubeVideoId = useMemo(() => extractYouTubeVideoId(course.url), [course.url]);
+
+  // Ensure modules are never empty: synthesize structured curriculum if course comes from live API
+  const modules: CourseModule[] = useMemo(() => {
+    if (Array.isArray(course.modules) && course.modules.length > 0) {
+      return course.modules;
+    }
+    return [
+      {
+        id: `mod_${course.id}_1`,
+        title: 'Module 1: Foundations & Core Concepts',
+        lessons: [
+          {
+            id: `les_${course.id}_1`,
+            title: `${course.title} - Core Principles`,
+            duration: '20 min',
+            type: 'concept',
+            summary: course.subtitle || course.description || 'Core theoretical principles and foundational understanding.',
+            content: `### ${course.title}\n\n${course.description || 'Master the fundamental concepts and practical methodologies of this subject.'}\n\n#### Key Objectives:\n- Grasp foundational principles and standard terminology\n- Understand real-world workflows and high-impact applications\n- Complete the guided video/curriculum milestones below`,
+            keyTakeaway: 'Mastering the core principles provides the mental foundation needed for rapid execution.',
+          },
+          {
+            id: `les_${course.id}_2`,
+            title: 'Hands-On Practice & Implementation',
+            duration: '35 min',
+            type: 'code',
+            summary: 'Practical labs, implementation patterns, and problem-solving exercises.',
+            content: `### Hands-on Practice: ${course.title}\n\nExplore real-world techniques and implementations.\n\nUse this interactive code playground to test concepts or discuss edge cases with your AI Tutor.`,
+            codeSnippet: `// Interactive Laboratory: ${course.title}\nconsole.log("Analyzing syllabus for: ${course.title}");\n// Run practice tests or query AI Tutor for live guidance!`,
+            keyTakeaway: 'Active implementation and coding transforms passive reading into durable skill retention.',
+          },
+          {
+            id: `les_${course.id}_3`,
+            title: 'Mastery Assessment & Capstone Project',
+            duration: '30 min',
+            type: 'project',
+            summary: 'Capstone assessment, skill validation, and interview-ready review.',
+            content: `### Capstone Assessment\n\nValidate your mastery of **${course.title}**.\n\n${course.url ? `Explore the official resource here: [${course.source ? course.source.toUpperCase() : 'Official Course'}](${course.url})` : ''}\n\nAsk your AI Tutor to quiz you or explain complex questions from this curriculum.`,
+            keyTakeaway: 'Synthesizing knowledge into a capstone project prepares you for technical interviews and competitive exams.',
+          },
+        ],
+      },
+    ];
+  }, [course]);
+
+  const allLessons: Lesson[] = useMemo(() => modules.flatMap((m) => m.lessons), [modules]);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [copiedCode, setCopiedCode] = useState(false);
 
   if (!isOpen) return null;
 
-  const currentLesson = allLessons[currentLessonIndex] || allLessons[0];
+  const currentLesson: Lesson = allLessons[currentLessonIndex] || allLessons[0] || {
+    id: `les_${course.id}_fallback`,
+    title: course.title,
+    duration: '30 min',
+    type: 'concept',
+    summary: course.description || '',
+    content: course.description || '',
+    keyTakeaway: 'Consistent daily focus ensures steady progress toward your career goals.',
+  };
+
   const isCompleted = completedLessonIds.includes(currentLesson.id);
   const totalLessons = allLessons.length;
   const completedCount = allLessons.filter((l) => completedLessonIds.includes(l.id)).length;
@@ -117,7 +189,7 @@ export const CoursePlayerModal: React.FC<CoursePlayerModalProps> = ({
               <span className="text-[10px] text-emerald-400 font-bold">{completedCount}/{totalLessons} Done</span>
             </div>
 
-            {course.modules.map((mod) => (
+            {modules.map((mod) => (
               <div key={mod.id} className="space-y-1">
                 <p className="text-[11px] font-extrabold text-slate-300 px-2 py-1 bg-white/5 rounded-lg">
                   {mod.title}
@@ -156,6 +228,40 @@ export const CoursePlayerModal: React.FC<CoursePlayerModalProps> = ({
 
           {/* Main Lesson Content Area */}
           <main className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6 bg-[#0c0e1e]">
+            {/* Embedded Ad-Free Privacy Video Player if YouTube */}
+            {youtubeVideoId && (
+              <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-white/15 shadow-2xl bg-black">
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?autoplay=1&rel=0&modestbranding=1`}
+                  title={course.title}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
+
+            {/* Official Source Link if not video */}
+            {course.url && !youtubeVideoId && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-[#14172f] border border-white/10">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30 text-[10px] uppercase">
+                    {course.source || 'Curriculum'}
+                  </span>
+                  <span className="text-slate-300 font-semibold">{course.title}</span>
+                </div>
+                <a
+                  href={course.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-xs font-bold text-white flex items-center gap-1.5 transition-all w-fit cursor-pointer shadow-sm"
+                >
+                  <span>Open Official Source</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
+
             {/* Lesson Title Strip */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
               <div>

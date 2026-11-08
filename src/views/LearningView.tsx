@@ -87,14 +87,18 @@ export const LearningView: React.FC<LearningViewProps> = ({
       // Convert unified results to CourseItem format with clean titles and robust thumbnails
       const courseItems: CourseItem[] = results
         .filter((r) => {
-          const t = (r.title || '').trim();
-          const d = (r.description || '').trim();
+          const t = (r.title || '').trim().toLowerCase();
+          const d = (r.description || '').trim().toLowerCase();
           return (
-            t.length > 2 &&
-            t.toLowerCase() !== 'ok-' &&
-            !t.toLowerCase().includes('<html') &&
-            !d.toLowerCase().includes('<html') &&
-            !d.toLowerCase().includes('<script')
+            t.length > 3 &&
+            !t.startsWith('ok') &&
+            t !== 'untitled course' &&
+            t !== 'ntest' &&
+            !t.includes('<html') &&
+            !t.includes('w3school') &&
+            !d.includes('<html') &&
+            !d.includes('<script') &&
+            !d.includes('<!doctype')
           );
         })
         .map((r) => {
@@ -121,8 +125,6 @@ export const LearningView: React.FC<LearningViewProps> = ({
             description: cleanDesc || `${r.title} - Complete curated educational curriculum.`,
             category: activeTab === 'All Courses' ? 'General' : activeTab,
             level: 'Intermediate',
-            rating: 4.8,
-            reviews: '1.2k+',
             duration: r.duration ? `${Math.round(r.duration / 60)} min` : 'Self-paced',
             image: r.thumbnail || '/assets/extracted/course_default.svg',
             tag: r.source.toUpperCase(),
@@ -130,6 +132,7 @@ export const LearningView: React.FC<LearningViewProps> = ({
             source: r.source,
             url: r.url,
             stars: r.stars,
+            views: r.views,
             language: r.language,
             modules: [],
           };
@@ -353,12 +356,20 @@ export const LearningView: React.FC<LearningViewProps> = ({
                     </div>
                     <div className="p-5">
                       <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
-                        <span className="font-semibold text-indigo-400">{c.level}</span>
-                        <div className="flex items-center gap-1 text-amber-400 font-bold">
-                          <Star className="w-3.5 h-3.5 fill-amber-400" />
-                          <span>{c.rating}</span>
-                          <span className="text-slate-500 text-[10px]">({c.reviews || '1k+'})</span>
-                        </div>
+                        <span className="font-semibold text-indigo-400">{c.level || 'Intermediate'}</span>
+                        {typeof c.stars === 'number' && c.stars > 0 ? (
+                          <div className="flex items-center gap-1 text-amber-400 font-bold">
+                            <Star className="w-3.5 h-3.5 fill-amber-400" />
+                            <span>{c.stars.toLocaleString()}</span>
+                            <span className="text-slate-500 text-[10px]">stars</span>
+                          </div>
+                        ) : typeof c.views === 'number' && c.views > 0 ? (
+                          <span className="text-cyan-400 font-semibold">{c.views.toLocaleString()} views</span>
+                        ) : (c.source === 'openalex' || c.source === 'arxiv' || c.source === 'crossref') ? (
+                          <span className="text-cyan-300 font-medium">Academic Citation</span>
+                        ) : (
+                          <span className="text-slate-500 text-[10px] font-medium">Verified Track</span>
+                        )}
                       </div>
                       <h3 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors leading-snug">
                         {c.title}

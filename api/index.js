@@ -199,6 +199,7 @@ __export(schema_exports, {
   careerPaths: () => careerPaths,
   chatMessages: () => chatMessages,
   chatSessions: () => chatSessions,
+  generatedQuizzes: () => generatedQuizzes,
   milestones: () => milestones,
   quizAttempts: () => quizAttempts,
   reminders: () => reminders,
@@ -303,6 +304,16 @@ var uploadedFiles = sqliteTable("uploaded_files", {
   storageKey: text("storage_key").notNull(),
   createdAt: integer("created_at").notNull()
 });
+var generatedQuizzes = sqliteTable("generated_quizzes", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  topic: text("topic").notNull(),
+  level: text("level").notNull().default("intermediate"),
+  title: text("title").notNull(),
+  questionsJson: text("questions_json").notNull(),
+  category: text("category").notNull().default("Subject Tests"),
+  createdAt: integer("created_at").notNull()
+});
 
 // src/lib/db/index.ts
 var dbUrl = process.env.TURSO_DATABASE_URL || "libsql://nova-ai-aztech1729.aws-ap-south-1.turso.io";
@@ -315,9 +326,18 @@ var client = createClient({
   authToken: dbAuthToken
 });
 var db = drizzle(client, { schema: schema_exports });
+var dbInitPromise = null;
+var isDbInitialized = false;
 async function initDatabase() {
-  try {
-    await client.execute(`
+  if (isDbInitialized) return;
+  if (dbInitPromise) return dbInitPromise;
+  dbInitPromise = (async () => {
+    let attempts = 0;
+    const maxAttempts = 3;
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -331,7 +351,7 @@ async function initDatabase() {
         created_at INTEGER NOT NULL
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -343,7 +363,7 @@ async function initDatabase() {
         created_at INTEGER NOT NULL
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS milestones (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -354,7 +374,7 @@ async function initDatabase() {
         order_index INTEGER NOT NULL DEFAULT 0
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS reminders (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -365,7 +385,7 @@ async function initDatabase() {
         created_at INTEGER NOT NULL
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS quiz_attempts (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -377,7 +397,7 @@ async function initDatabase() {
         completed_at INTEGER NOT NULL
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS career_paths (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -389,7 +409,7 @@ async function initDatabase() {
         skills TEXT NOT NULL
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS chat_sessions (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -398,7 +418,7 @@ async function initDatabase() {
         updated_at INTEGER NOT NULL
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS chat_messages (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,
@@ -410,7 +430,7 @@ async function initDatabase() {
         created_at INTEGER NOT NULL
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS uploaded_files (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -423,16 +443,16 @@ async function initDatabase() {
         created_at INTEGER NOT NULL
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id, updated_at DESC);
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, created_at ASC);
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE INDEX IF NOT EXISTS idx_uploaded_files_user ON uploaded_files(user_id, created_at DESC);
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS course_enrollments (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -444,7 +464,7 @@ async function initDatabase() {
         completed_at INTEGER
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS user_course_lessons (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -457,7 +477,7 @@ async function initDatabase() {
         completed_at INTEGER
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS generated_career_paths (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -466,7 +486,19 @@ async function initDatabase() {
         created_at INTEGER NOT NULL
       );
     `);
-    await client.execute(`
+        await client.execute(`
+      CREATE TABLE IF NOT EXISTS generated_quizzes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        level TEXT NOT NULL DEFAULT 'intermediate',
+        title TEXT NOT NULL,
+        questions_json TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'Subject Tests',
+        created_at INTEGER NOT NULL
+      );
+    `);
+        await client.execute(`
       CREATE TABLE IF NOT EXISTS search_cache (
         query TEXT PRIMARY KEY,
         results_json TEXT NOT NULL,
@@ -474,19 +506,32 @@ async function initDatabase() {
         ttl_ms INTEGER NOT NULL DEFAULT 86400000
       );
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE INDEX IF NOT EXISTS idx_course_enrollments_user ON course_enrollments(user_id);
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE INDEX IF NOT EXISTS idx_user_course_lessons_user ON user_course_lessons(user_id, course_id);
     `);
-    await client.execute(`
+        await client.execute(`
       CREATE INDEX IF NOT EXISTS idx_generated_career_paths_user ON generated_career_paths(user_id);
     `);
-    console.log("\u2705 Turso Database schema verified (zero mock data seeded).");
-  } catch (err) {
-    console.error("Database init error:", err?.message || err);
-  }
+        await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_generated_quizzes_user ON generated_quizzes(user_id, created_at DESC);
+    `);
+        console.log("\u2705 Turso Database schema verified (zero mock data seeded).");
+        isDbInitialized = true;
+        return;
+      } catch (err) {
+        console.warn(`Database init attempt ${attempts} warning:`, err?.message || err);
+        if (attempts >= maxAttempts) {
+          console.error("Database init final failure:", err?.message || err);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, attempts * 500));
+      }
+    }
+  })();
+  return dbInitPromise;
 }
 
 // src/lib/ai/tools.ts
@@ -1051,21 +1096,21 @@ async function searchGitHubCourses(query, perPage = 10) {
     if (!res.ok) return [];
     const data = await res.json();
     return (data.items || []).filter((repo) => {
-      const name = (repo.name || "").toLowerCase();
+      const name = (repo.name || "").toLowerCase().trim();
       const desc = (repo.description || "").toLowerCase();
-      return name.length > 2 && name !== "ok-" && !name.includes("<html") && !desc.includes("<html") && !desc.includes("<script");
+      return name.length > 3 && !name.startsWith("ok") && !name.includes("w3school") && !name.includes("<html") && !desc.includes("<html") && !desc.includes("<!doctype") && !desc.includes("<script") && !/^[_\-.]/.test(name);
     }).map((repo) => {
-      const formattedTitle = repo.name.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+      const formattedTitle = repo.name.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()).trim();
       const cleanedDesc = cleanText(repo.description);
       return {
         id: `gh-${repo.id}`,
         title: formattedTitle,
-        description: cleanedDesc || `${formattedTitle} - Open source learning materials and practical labs on GitHub.`,
+        description: cleanedDesc || `${formattedTitle} - Open source curriculum and hands-on coding repositories.`,
         url: repo.html_url,
         stars: repo.stargazers_count,
         language: repo.language,
         source: "github",
-        thumbnail: `https://opengraph.githubassets.com/1/${repo.full_name}`
+        thumbnail: repo.owner?.avatar_url || "/assets/extracted/course_webdev.svg"
       };
     });
   } catch {
@@ -1115,12 +1160,12 @@ async function searchMitOcw(query, limit = 10) {
       let match = regex.exec(html);
       while (match && courses.length < limit) {
         const url = match[1].startsWith("http") ? match[1] : `https://ocw.mit.edu${match[1]}`;
-        const title = match[2].replace(/<[^>]*>/g, "").trim();
-        if (title && url && !courses.find((c) => c.url === url)) {
+        const rawTitle = match[2].replace(/<[^>]*>/g, "").replace(/&[a-z0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
+        if (rawTitle.length > 4 && rawTitle.length < 120 && !rawTitle.includes("{") && !rawTitle.includes(";") && !rawTitle.toLowerCase().includes("script") && !rawTitle.toLowerCase().includes("cookie") && url && !courses.find((c) => c.url === url)) {
           courses.push({
             id: `mit-${url.split("/").filter(Boolean).pop()}`,
-            title: title || "MIT OCW Course",
-            description: "MIT OpenCourseWare - Free course materials",
+            title: rawTitle,
+            description: `${rawTitle} - Official MIT OpenCourseWare curriculum & lecture materials.`,
             url,
             source: "mit-ocw",
             type: "course",
@@ -1137,6 +1182,10 @@ async function searchMitOcw(query, limit = 10) {
 }
 
 // src/lib/services/open-edx.ts
+function cleanText2(str) {
+  if (!str) return "";
+  return str.replace(/<[^>]*>/g, "").replace(/&[a-z0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
+}
 async function searchOpenEdx(query, limit = 10) {
   try {
     const res = await fetch(
@@ -1145,15 +1194,24 @@ async function searchOpenEdx(query, limit = 10) {
     );
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.results || []).map((course) => ({
-      id: `edx-${course.id || course.course_id || Date.now()}`,
-      title: course.title || "Untitled Course",
-      description: course.short_description || course.description || "",
-      url: `https://courses.edx.org/courses/${course.id || course.course_id}`,
-      source: "open-edx",
-      type: "course",
-      thumbnail: "/assets/extracted/course_cloud.svg"
-    }));
+    return (data.results || []).map((course) => {
+      const title = cleanText2(course.name || course.title || "");
+      const desc = cleanText2(course.short_description || course.description || "");
+      const courseId = course.id || course.course_id || "";
+      const image = course.media?.image?.large || course.media?.image?.raw || course.media?.banner_image?.uri_absolute || "/assets/extracted/course_cloud.svg";
+      return {
+        id: `edx-${courseId || Date.now()}`,
+        title,
+        description: desc || `${title} - Comprehensive verified course curriculum on Open edX.`,
+        url: `https://courses.edx.org/courses/${courseId}`,
+        source: "open-edx",
+        type: "course",
+        thumbnail: image
+      };
+    }).filter((c) => {
+      const t = c.title.toLowerCase();
+      return t.length > 3 && t !== "untitled course" && t !== "ntest" && !t.includes("<html");
+    });
   } catch {
     return [];
   }
@@ -1174,12 +1232,12 @@ async function searchOpenStax(query, limit = 10) {
     let count = 0;
     while (match && count < limit) {
       const url = match[1].startsWith("http") ? match[1] : `https://openstax.org${match[1]}`;
-      const title = match[2].replace(/<[^>]*>/g, "").trim();
-      if (title && url) {
+      const rawTitle = match[2].replace(/<[^>]*>/g, "").replace(/&[a-z0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
+      if (rawTitle.length > 3 && rawTitle.length < 120 && !rawTitle.includes("{") && !rawTitle.toLowerCase().includes("script") && url) {
         books.push({
           id: `openstax-${url.split("/").filter(Boolean).pop()}`,
-          title: title || "OpenStax Textbook",
-          description: "OpenStax - Free peer-reviewed textbook",
+          title: rawTitle,
+          description: `${rawTitle} - Peer-reviewed, open-licensed college textbook from OpenStax.`,
           url,
           source: "openstax",
           type: "course",
@@ -1264,7 +1322,7 @@ async function searchYouTubeVideos(query, maxResults = 10) {
 }
 
 // src/lib/pipeline/course-pipeline.ts
-function cleanText2(str) {
+function cleanText3(str) {
   if (!str) return "";
   return str.replace(/<[^>]*>/g, "").replace(/&[a-z0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
 }
@@ -1356,8 +1414,8 @@ async function searchAllSources(query, options) {
     if (archive.status === "fulfilled")
       results.push(...archive.value.map((v) => ({
         id: `ia-${v.id}`,
-        title: cleanText2(v.title),
-        description: cleanText2(v.description) || "Archived educational video lecture",
+        title: cleanText3(v.title),
+        description: cleanText3(v.description) || "Archived educational video lecture",
         url: v.url,
         source: "archive",
         type: "video",
@@ -1377,8 +1435,8 @@ async function searchAllSources(query, options) {
     if (github.status === "fulfilled")
       results.push(...github.value.map((g) => ({
         id: g.id,
-        title: cleanText2(g.title),
-        description: cleanText2(g.description),
+        title: cleanText3(g.title),
+        description: cleanText3(g.description),
         url: g.url,
         source: "github",
         type: "course",
@@ -1389,8 +1447,8 @@ async function searchAllSources(query, options) {
     if (arxiv.status === "fulfilled")
       results.push(...arxiv.value.map((a) => ({
         id: a.id,
-        title: cleanText2(a.title),
-        description: cleanText2(a.description),
+        title: cleanText3(a.title),
+        description: cleanText3(a.description),
         url: a.url,
         source: "arxiv",
         type: "lesson",
@@ -1399,8 +1457,8 @@ async function searchAllSources(query, options) {
     if (crossref.status === "fulfilled")
       results.push(...crossref.value.map((c) => ({
         id: c.id,
-        title: cleanText2(c.title),
-        description: cleanText2(c.description),
+        title: cleanText3(c.title),
+        description: cleanText3(c.description),
         url: c.url,
         source: "crossref",
         type: "lesson",
@@ -1409,8 +1467,8 @@ async function searchAllSources(query, options) {
     if (openalex.status === "fulfilled")
       results.push(...openalex.value.map((o) => ({
         id: o.id,
-        title: cleanText2(o.title),
-        description: cleanText2(o.description),
+        title: cleanText3(o.title),
+        description: cleanText3(o.description),
         url: o.url,
         source: "openalex",
         type: "lesson",
@@ -1419,8 +1477,8 @@ async function searchAllSources(query, options) {
     if (mitOcw.status === "fulfilled")
       results.push(...mitOcw.value.map((m) => ({
         id: m.id,
-        title: cleanText2(m.title),
-        description: cleanText2(m.description),
+        title: cleanText3(m.title),
+        description: cleanText3(m.description),
         url: m.url,
         source: "mit-ocw",
         type: "course",
@@ -1429,8 +1487,8 @@ async function searchAllSources(query, options) {
     if (openEdx.status === "fulfilled")
       results.push(...openEdx.value.map((e) => ({
         id: e.id,
-        title: cleanText2(e.title),
-        description: cleanText2(e.description),
+        title: cleanText3(e.title),
+        description: cleanText3(e.description),
         url: e.url,
         source: "open-edx",
         type: "course",
@@ -1439,8 +1497,8 @@ async function searchAllSources(query, options) {
     if (openStax.status === "fulfilled")
       results.push(...openStax.value.map((s) => ({
         id: s.id,
-        title: cleanText2(s.title),
-        description: cleanText2(s.description),
+        title: cleanText3(s.title),
+        description: cleanText3(s.description),
         url: s.url,
         source: "openstax",
         type: "course",
@@ -1451,8 +1509,8 @@ async function searchAllSources(query, options) {
     const wiki = await searchWikipedia(query, maxPerSource);
     results.push(...wiki.map((w) => ({
       id: w.id,
-      title: cleanText2(w.title),
-      description: cleanText2(w.description),
+      title: cleanText3(w.title),
+      description: cleanText3(w.description),
       url: w.url,
       source: "wikipedia",
       type: "lesson",
@@ -2013,6 +2071,37 @@ app.delete("/api/reminders/:id", async (req, res) => {
   } catch (err) {
     console.error("Delete reminder error:", err);
     return res.status(500).json({ error: "Failed to delete reminder" });
+  }
+});
+app.get("/api/quizzes", async (req, res) => {
+  const userId = await resolveUserId(req);
+  try {
+    const result = await client.execute({
+      sql: "SELECT * FROM generated_quizzes WHERE user_id = ? ORDER BY created_at DESC",
+      args: [userId]
+    });
+    const quizzes = result.rows.map((row) => {
+      let questions = [];
+      try {
+        questions = JSON.parse(row.questions_json);
+      } catch {
+      }
+      return {
+        id: row.id,
+        title: row.title,
+        topic: row.topic,
+        level: row.level,
+        category: row.category || "Subject Tests",
+        questionsCount: questions.length,
+        durationMinutes: Math.max(questions.length * 2, 10),
+        questions,
+        createdAt: row.created_at
+      };
+    });
+    return res.json({ success: true, quizzes });
+  } catch (err) {
+    console.error("Fetch quizzes error:", err);
+    return res.status(500).json({ error: "Failed to fetch quizzes" });
   }
 });
 app.get("/api/quizzes/attempts", async (req, res) => {
@@ -3106,9 +3195,30 @@ app.post("/api/career/explore", handleCareerExplore);
 app.post("/api/quiz/generate", async (req, res) => {
   const { topic, level, numQuestions } = req.body || {};
   if (!topic) return res.status(400).json({ error: "Topic required" });
+  const userId = await resolveUserId(req);
   try {
-    const quiz = await generateQuiz(topic, level || "intermediate", numQuestions || 10);
-    return res.json({ success: true, quiz });
+    const quiz = await generateQuiz(topic, level || "intermediate", numQuestions || 5);
+    const quizId = `quiz_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+    try {
+      await client.execute({
+        sql: `INSERT INTO generated_quizzes (id, user_id, topic, level, title, questions_json, category, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          quizId,
+          userId,
+          String(topic).slice(0, 100),
+          String(level || "intermediate"),
+          String(quiz.title || `${topic} Assessment`).slice(0, 150),
+          JSON.stringify(questions),
+          "Subject Tests",
+          Date.now()
+        ]
+      });
+    } catch (saveErr) {
+      console.warn("Could not persist generated quiz to DB:", saveErr);
+    }
+    return res.json({ success: true, quiz: { ...quiz, id: quizId } });
   } catch (err) {
     console.error("Quiz generation error:", err);
     return res.status(500).json({ error: err.message || "Quiz generation failed" });

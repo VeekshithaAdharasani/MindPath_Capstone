@@ -336,40 +336,6 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 Explore Features
               </button>
             </div>
-
-            {/* Trusted by 10,000+ Ambitious Students Social Proof Badge */}
-            <div className="pt-2 flex items-center gap-3">
-              <div className="flex -space-x-2.5 overflow-hidden">
-                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white text-[11px] font-bold ring-2 ring-[#070914]">
-                  AH
-                </div>
-                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-sky-500 text-white text-[11px] font-bold ring-2 ring-[#070914]">
-                  SM
-                </div>
-                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-500 text-white text-[11px] font-bold ring-2 ring-[#070914]">
-                  RV
-                </div>
-                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500 text-white text-[11px] font-bold ring-2 ring-[#070914]">
-                  PS
-                </div>
-                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-[10px] font-bold ring-2 ring-[#070914]">
-                  +10k
-                </div>
-              </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                  <span>Trusted by 10,000+ Ambitious Students</span>
-                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                </div>
-                <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                  <div className="flex text-amber-400">
-                    {'★'.repeat(5)}
-                  </div>
-                  <span className="font-semibold text-slate-300">4.9/5</span>
-                  <span>from 1,200+ reviews</span>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Right Column: Interactive Live Workspace Dashboard Preview (Image 3) */}

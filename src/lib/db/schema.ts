@@ -97,3 +97,14 @@ export const uploadedFiles = sqliteTable('uploaded_files', {
   createdAt: integer('created_at').notNull(),
 });
 
+export const generatedQuizzes = sqliteTable('generated_quizzes', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  topic: text('topic').notNull(),
+  level: text('level').notNull().default('intermediate'),
+  title: text('title').notNull(),
+  questionsJson: text('questions_json').notNull(),
+  category: text('category').notNull().default('Subject Tests'),
+  createdAt: integer('created_at').notNull(),
+});
+

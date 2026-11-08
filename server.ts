@@ -546,6 +546,39 @@ app.delete('/api/reminders/:id', async (req, res) => {
 // -------------------------------------------------------------
 // QUIZ ATTEMPTS & PROGRESS APIS (Turso DB)
 // -------------------------------------------------------------
+// QUIZZES & ASSESSMENTS API (Turso Cloud DB Persistence)
+// -------------------------------------------------------------
+app.get('/api/quizzes', async (req, res) => {
+  const userId = await resolveUserId(req);
+  try {
+    const result = await client.execute({
+      sql: 'SELECT * FROM generated_quizzes WHERE user_id = ? ORDER BY created_at DESC',
+      args: [userId],
+    });
+    const quizzes = result.rows.map((row: any) => {
+      let questions = [];
+      try {
+        questions = JSON.parse(row.questions_json as string);
+      } catch {}
+      return {
+        id: row.id,
+        title: row.title,
+        topic: row.topic,
+        level: row.level,
+        category: row.category || 'Subject Tests',
+        questionsCount: questions.length,
+        durationMinutes: Math.max(questions.length * 2, 10),
+        questions,
+        createdAt: row.created_at,
+      };
+    });
+    return res.json({ success: true, quizzes });
+  } catch (err: any) {
+    console.error('Fetch quizzes error:', err);
+    return res.status(500).json({ error: 'Failed to fetch quizzes' });
+  }
+});
+
 app.get('/api/quizzes/attempts', async (req, res) => {
   const userId = await resolveUserId(req);
   try {
@@ -1714,14 +1747,38 @@ Return ONLY valid JSON matching:
 app.get('/api/career/explore', handleCareerExplore);
 app.post('/api/career/explore', handleCareerExplore);
 
-// AI Quiz Generation
+// AI Quiz Generation with Turso DB Persistence
 app.post('/api/quiz/generate', async (req, res) => {
   const { topic, level, numQuestions } = req.body || {};
   if (!topic) return res.status(400).json({ error: 'Topic required' });
+  const userId = await resolveUserId(req);
 
   try {
-    const quiz = await generateQuiz(topic, level || 'intermediate', numQuestions || 10);
-    return res.json({ success: true, quiz });
+    const quiz = await generateQuiz(topic, level || 'intermediate', numQuestions || 5);
+    const quizId = `quiz_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+
+    // Save to Turso DB for persistent review
+    try {
+      await client.execute({
+        sql: `INSERT INTO generated_quizzes (id, user_id, topic, level, title, questions_json, category, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          quizId,
+          userId,
+          String(topic).slice(0, 100),
+          String(level || 'intermediate'),
+          String(quiz.title || `${topic} Assessment`).slice(0, 150),
+          JSON.stringify(questions),
+          'Subject Tests',
+          Date.now(),
+        ],
+      });
+    } catch (saveErr) {
+      console.warn('Could not persist generated quiz to DB:', saveErr);
+    }
+
+    return res.json({ success: true, quiz: { ...quiz, id: quizId } });
   } catch (err: any) {
     console.error('Quiz generation error:', err);
     return res.status(500).json({ error: err.message || 'Quiz generation failed' });

@@ -18,12 +18,21 @@ export async function searchMitOcw(query: string, limit = 10): Promise<any[]> {
       let match = regex.exec(html);
       while (match && courses.length < limit) {
         const url = match[1].startsWith('http') ? match[1] : `https://ocw.mit.edu${match[1]}`;
-        const title = match[2].replace(/<[^>]*>/g, '').trim();
-        if (title && url && !courses.find(c => c.url === url)) {
+        const rawTitle = match[2].replace(/<[^>]*>/g, '').replace(/&[a-z0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+        if (
+          rawTitle.length > 4 &&
+          rawTitle.length < 120 &&
+          !rawTitle.includes('{') &&
+          !rawTitle.includes(';') &&
+          !rawTitle.toLowerCase().includes('script') &&
+          !rawTitle.toLowerCase().includes('cookie') &&
+          url &&
+          !courses.find(c => c.url === url)
+        ) {
           courses.push({
             id: `mit-${url.split('/').filter(Boolean).pop()}`,
-            title: title || 'MIT OCW Course',
-            description: 'MIT OpenCourseWare - Free course materials',
+            title: rawTitle,
+            description: `${rawTitle} - Official MIT OpenCourseWare curriculum & lecture materials.`,
             url,
             source: 'mit-ocw' as const,
             type: 'course' as const,

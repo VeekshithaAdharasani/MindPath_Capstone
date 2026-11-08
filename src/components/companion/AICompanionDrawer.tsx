@@ -409,7 +409,7 @@ CRITICAL INSTRUCTIONS:
       onError: (err) => {
         const fallbackMsg: ExtendedChatMsg = {
           role: 'assistant',
-          content: `I encountered a momentary connection hiccup (${err.message}). Your previous progress is fully preserved! Please retry or continue your Python and Mathematics milestones.`,
+          content: `I encountered a momentary connection hiccup (${err.message || 'network timeout'}). Your conversation is fully preserved! Please retry or continue asking your question.`,
         };
         updateActiveSessionMessages([...updatedMessages, fallbackMsg]);
         setStreamingDelta('');

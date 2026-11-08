@@ -17,10 +17,22 @@ export const client = createClient({
 
 export const db = drizzle(client, { schema });
 
-// Auto-seed initial tables and data if not present
-export async function initDatabase() {
-  try {
-    // Create tables if they do not exist
+let dbInitPromise: Promise<void> | null = null;
+let isDbInitialized = false;
+
+// Auto-seed initial tables and data if not present with exponential backoff retry
+export async function initDatabase(): Promise<void> {
+  if (isDbInitialized) return;
+  if (dbInitPromise) return dbInitPromise;
+
+  dbInitPromise = (async () => {
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        // Create tables if they do not exist
     await client.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -184,6 +196,19 @@ export async function initDatabase() {
     `);
 
     await client.execute(`
+      CREATE TABLE IF NOT EXISTS generated_quizzes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        level TEXT NOT NULL DEFAULT 'intermediate',
+        title TEXT NOT NULL,
+        questions_json TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'Subject Tests',
+        created_at INTEGER NOT NULL
+      );
+    `);
+
+    await client.execute(`
       CREATE TABLE IF NOT EXISTS search_cache (
         query TEXT PRIMARY KEY,
         results_json TEXT NOT NULL,
@@ -201,9 +226,23 @@ export async function initDatabase() {
     await client.execute(`
       CREATE INDEX IF NOT EXISTS idx_generated_career_paths_user ON generated_career_paths(user_id);
     `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_generated_quizzes_user ON generated_quizzes(user_id, created_at DESC);
+    `);
 
     console.log('✅ Turso Database schema verified (zero mock data seeded).');
-  } catch (err: any) {
-    console.error('Database init error:', err?.message || err);
-  }
+        isDbInitialized = true;
+        return;
+      } catch (err: any) {
+        console.warn(`Database init attempt ${attempts} warning:`, err?.message || err);
+        if (attempts >= maxAttempts) {
+          console.error('Database init final failure:', err?.message || err);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, attempts * 500));
+      }
+    }
+  })();
+
+  return dbInitPromise;
 }

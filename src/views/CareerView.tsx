@@ -117,12 +117,23 @@ export const CareerView: React.FC<CareerViewProps> = ({
     Arts: Sparkles,
   };
 
-  const filtered = careers.filter(
-    (item) =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.requiredSkills.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filtered = careers.filter((item) => {
+    if (!item) return false;
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    const t = (item.title || '').toLowerCase();
+    const d = (item.description || '').toLowerCase();
+    const skills: string[] = Array.isArray(item.requiredSkills)
+      ? item.requiredSkills
+      : Array.isArray((item as any).skills)
+      ? (item as any).skills
+      : [];
+    return (
+      t.includes(q) ||
+      d.includes(q) ||
+      skills.some((s) => String(s || '').toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-[1520px] mx-auto animate-in fade-in duration-300">
@@ -372,7 +383,7 @@ export const CareerView: React.FC<CareerViewProps> = ({
                         <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">{item.description}</p>
 
                         <div className="mt-2.5 flex flex-wrap gap-1">
-                          {item.requiredSkills.slice(0, 3).map((sk, sIdx) => (
+                          {(Array.isArray(item.requiredSkills) ? item.requiredSkills : (Array.isArray((item as any).skills) ? (item as any).skills : [])).slice(0, 3).map((sk: string, sIdx: number) => (
                             <span key={sIdx} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-slate-300 border border-white/5">
                               {sk}
                             </span>

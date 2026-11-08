@@ -18,30 +18,34 @@ export async function searchGitHubCourses(query: string, perPage = 10): Promise<
 
     return (data.items || [])
       .filter((repo: any) => {
-        const name = (repo.name || '').toLowerCase();
+        const name = (repo.name || '').toLowerCase().trim();
         const desc = (repo.description || '').toLowerCase();
         return (
-          name.length > 2 &&
-          name !== 'ok-' &&
+          name.length > 3 &&
+          !name.startsWith('ok') &&
+          !name.includes('w3school') &&
           !name.includes('<html') &&
           !desc.includes('<html') &&
-          !desc.includes('<script')
+          !desc.includes('<!doctype') &&
+          !desc.includes('<script') &&
+          !/^[_\-.]/.test(name)
         );
       })
       .map((repo: any) => {
         const formattedTitle = repo.name
           .replace(/[-_]/g, ' ')
-          .replace(/\b\w/g, (l: string) => l.toUpperCase());
+          .replace(/\b\w/g, (l: string) => l.toUpperCase())
+          .trim();
         const cleanedDesc = cleanText(repo.description);
         return {
           id: `gh-${repo.id}`,
           title: formattedTitle,
-          description: cleanedDesc || `${formattedTitle} - Open source learning materials and practical labs on GitHub.`,
+          description: cleanedDesc || `${formattedTitle} - Open source curriculum and hands-on coding repositories.`,
           url: repo.html_url,
           stars: repo.stargazers_count,
           language: repo.language,
           source: 'github' as const,
-          thumbnail: `https://opengraph.githubassets.com/1/${repo.full_name}`,
+          thumbnail: repo.owner?.avatar_url || '/assets/extracted/course_webdev.svg',
         };
       });
   } catch {
