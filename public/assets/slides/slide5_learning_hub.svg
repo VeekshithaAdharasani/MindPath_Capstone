@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" fill="none">
+  <defs>
+    <linearGradient id="bgGrad5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e1329" />
+      <stop offset="100%" stop-color="#080a14" />
+    </linearGradient>
+    <linearGradient id="cardGrad5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141838" />
+      <stop offset="100%" stop-color="#0d1024" />
+    </linearGradient>
+    <linearGradient id="pyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+    <linearGradient id="mlGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="500" rx="24" fill="url(#bgGrad5)" stroke="#ffffff" stroke-opacity="0.1" stroke-width="2"/>
+
+  <!-- Top Window Header Bar -->
+  <rect x="0" y="0" width="800" height="42" fill="#111636" rx="24" />
+  <rect x="0" y="24" width="800" height="18" fill="#111636" />
+  <line x1="0" y1="42" x2="800" y2="42" stroke="#ffffff" stroke-opacity="0.08" />
+  
+  <circle cx="28" cy="21" r="5" fill="#ef4444" opacity="0.8" />
+  <circle cx="44" cy="21" r="5" fill="#f59e0b" opacity="0.8" />
+  <circle cx="60" cy="21" r="5" fill="#10b981" opacity="0.8" />
+
+  <text x="400" y="26" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#94a3b8">
+    Curated Learning Hub • High-Impact Technical Courses &amp; Roadmaps
+  </text>
+
+  <!-- Active Course Hero Banner -->
+  <g transform="translate(32, 60)">
+    <rect width="736" height="115" rx="16" fill="url(#cardGrad5)" stroke="#ffffff" stroke-opacity="0.08" />
+    
+    <!-- Course Icon -->
+    <rect x="24" y="24" width="68" height="68" rx="14" fill="#1e293b" />
+    <circle cx="58" cy="58" r="22" fill="url(#pyGrad)" opacity="0.85" />
+    <text x="58" y="65" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" font-weight="900" fill="#ffffff">🐍</text>
+
+    <!-- Course Info -->
+    <g transform="translate(110, 24)">
+      <text x="0" y="16" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#a78bfa" letter-spacing="1">
+        CURRENT COURSE IN PROGRESS
+      </text>
+      <text x="0" y="38" font-family="system-ui, sans-serif" font-size="16" font-weight="900" fill="#ffffff">
+        Python Programming: Functions, Lambdas &amp; Algorithms
+      </text>
+      
+      <!-- Progress Bar -->
+      <g transform="translate(0, 52)">
+        <rect width="420" height="8" rx="4" fill="#1e293b" />
+        <rect width="273" height="8" rx="4" fill="#10b981" />
+        <text x="435" y="8" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#34d399">
+          65% Complete
+        </text>
+      </g>
+    </g>
+
+    <g transform="translate(600, 40)">
+      <rect width="112" height="36" rx="10" fill="#8b5cf6" />
+      <text x="56" y="22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#ffffff">
+        Continue →
+      </text>
+    </g>
+  </g>
+
+  <!-- 3 Featured Course Cards -->
+  <g transform="translate(32, 192)">
+    <!-- Course 1 -->
+    <rect width="234" height="200" rx="16" fill="url(#cardGrad5)" stroke="#ffffff" stroke-opacity="0.08"/>
+    <rect x="18" y="18" width="44" height="44" rx="12" fill="url(#pyGrad)" opacity="0.2"/>
+    <text x="40" y="47" text-anchor="middle" font-size="22">📊</text>
+    <text x="18" y="86" font-family="system-ui, sans-serif" font-size="13" font-weight="800" fill="#ffffff">
+      Data Science Pro
+    </text>
+    <text x="18" y="104" font-family="system-ui, sans-serif" font-size="10" font-weight="500" fill="#94a3b8">
+      Pandas, NumPy &amp; Analytics
+    </text>
+    <text x="18" y="132" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="#64748b">
+      16 Lessons • 8h 15m • ★ 4.9
+    </text>
+    <rect x="18" y="150" width="198" height="32" rx="8" fill="#1e293b" />
+    <text x="117" y="170" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#38bdf8">
+      Start Course
+    </text>
+
+    <!-- Course 2 -->
+    <g transform="translate(251, 0)">
+      <rect width="234" height="200" rx="16" fill="url(#cardGrad5)" stroke="#ffffff" stroke-opacity="0.08"/>
+      <rect x="18" y="18" width="44" height="44" rx="12" fill="url(#mlGrad)" opacity="0.2"/>
+      <text x="40" y="47" text-anchor="middle" font-size="22">🧠</text>
+      <text x="18" y="86" font-family="system-ui, sans-serif" font-size="13" font-weight="800" fill="#ffffff">
+        Machine Learning Core
+      </text>
+      <text x="18" y="104" font-family="system-ui, sans-serif" font-size="10" font-weight="500" fill="#94a3b8">
+        PyTorch, Neural Nets &amp; Vision
+      </text>
+      <text x="18" y="132" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="#64748b">
+        20 Lessons • 10h 30m • ★ 4.9
+      </text>
+      <rect x="18" y="150" width="198" height="32" rx="8" fill="#1e293b" />
+      <text x="117" y="170" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#a855f7">
+        Start Course
+      </text>
+    </g>
+
+    <!-- Course 3 -->
+    <g transform="translate(502, 0)">
+      <rect width="234" height="200" rx="16" fill="url(#cardGrad5)" stroke="#ffffff" stroke-opacity="0.08"/>
+      <rect x="18" y="18" width="44" height="44" rx="12" fill="url(#cloudGrad)" opacity="0.2"/>
+      <text x="40" y="47" text-anchor="middle" font-size="22">☁️</text>
+      <text x="18" y="86" font-family="system-ui, sans-serif" font-size="13" font-weight="800" fill="#ffffff">
+        Cloud Architecture
+      </text>
+      <text x="18" y="104" font-family="system-ui, sans-serif" font-size="10" font-weight="500" fill="#94a3b8">
+        Docker, CI/CD &amp; Kubernetes
+      </text>
+      <text x="18" y="132" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="#64748b">
+        18 Lessons • 9h 20m • ★ 4.8
+      </text>
+      <rect x="18" y="150" width="198" height="32" rx="8" fill="#1e293b" />
+      <text x="117" y="170" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#38bdf8">
+        Start Course
+      </text>
+    </g>
+  </g>
+
+  <!-- Bottom Study Goal Extender -->
+  <g transform="translate(32, 410)">
+    <rect width="736" height="54" rx="14" fill="#161c3c" stroke="#10b981" stroke-opacity="0.3"/>
+    <text x="24" y="32" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#34d399">
+      ⚡ Daily Study Extender: Spend 30 minutes in any course to maintain and extend your daily study streak!
+    </text>
+    <rect x="620" y="12" width="96" height="30" rx="8" fill="#10b981" />
+    <text x="668" y="31" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#ffffff">
+      Learn Now
+    </text>
+  </g>
+</svg>
+

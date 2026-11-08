@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <defs>
+    <linearGradient id="qBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0d20"/>
+      <stop offset="50%" stop-color="#12173a"/>
+      <stop offset="100%" stop-color="#060815"/>
+    </linearGradient>
+
+    <!-- Trophy Gold Metallic Gradient -->
+    <linearGradient id="trophyGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb"/>
+      <stop offset="25%" stop-color="#fde047"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="85%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+
+    <linearGradient id="trophyPedestal" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="50%" stop-color="#312e81"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+
+    <!-- Electric Violet Aura -->
+    <radialGradient id="violetAura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.45"/>
+      <stop offset="60%" stop-color="#7c3aed" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fde047" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#fde047" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Neon Glow Filter -->
+    <filter id="qNeon" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <pattern id="qGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="1600" height="900" fill="url(#qBg)"/>
+  <rect width="1600" height="900" fill="url(#qGrid)"/>
+
+  <!-- Electric Energy Waves from Right -->
+  <circle cx="1150" cy="450" r="500" fill="url(#violetAura)"/>
+  <circle cx="1150" cy="420" r="320" fill="url(#goldGlow)"/>
+
+  <!-- Energy Wave Arcs -->
+  <g stroke="rgba(168, 85, 247, 0.25)" stroke-width="2.5" fill="none">
+    <ellipse cx="1150" cy="450" rx="380" ry="220" stroke-dasharray="24 16"/>
+    <ellipse cx="1150" cy="450" rx="460" ry="280" stroke-dasharray="12 12"/>
+    <ellipse cx="1150" cy="450" rx="540" ry="340" stroke-dasharray="8 20"/>
+  </g>
+
+  <!-- 3D Gleaming Trophy (Right-Aligned) -->
+  <g transform="translate(1150, 420)" filter="url(#qNeon)">
+    <!-- Aura Ring -->
+    <ellipse cx="0" cy="20" rx="200" ry="60" fill="none" stroke="rgba(253, 224, 71, 0.3)" stroke-width="3"/>
+
+    <!-- Left Handle -->
+    <path d="M -120 -60 C -190 -60 -200 40 -110 80 L -80 70 C -150 40 -140 -30 -100 -40 Z" fill="url(#trophyGold)"/>
+    <!-- Right Handle -->
+    <path d="M 120 -60 C 190 -60 200 40 110 80 L 80 70 C 150 40 140 -30 100 -40 Z" fill="url(#trophyGold)"/>
+
+    <!-- Trophy Cup Body -->
+    <path d="M -120 -80 C -120 60 -50 150 0 170 C 50 150 120 60 120 -80 Z" fill="url(#trophyGold)"/>
+
+    <!-- Cup Rim -->
+    <ellipse cx="0" cy="-80" rx="120" ry="24" fill="#fef08a"/>
+    <ellipse cx="0" cy="-80" rx="110" ry="20" fill="#ca8a04"/>
+    <ellipse cx="0" cy="-80" rx="100" ry="16" fill="#78350f"/>
+
+    <!-- Specular Highlight Sheen -->
+    <path d="M -70 -70 C -70 30 -30 110 0 140 C -15 110 -40 30 -40 -70 Z" fill="#ffffff" opacity="0.45"/>
+
+    <!-- Trophy Stem / Neck -->
+    <path d="M -24 170 H 24 V 220 H -24 Z" fill="url(#trophyGold)"/>
+    <ellipse cx="0" cy="195" rx="32" ry="8" fill="#fef08a"/>
+
+    <!-- Trophy Pedestal Base -->
+    <polygon points="-70,220 70,220 90,270 -90,270" fill="url(#trophyPedestal)"/>
+    <polygon points="-90,270 90,270 100,290 -100,290" fill="#1e1b4b"/>
+    <!-- Gold Trim on Base -->
+    <rect x="-85" y="240" width="170" height="6" fill="url(#trophyGold)"/>
+    <circle cx="0" cy="256" r="6" fill="#fde047"/>
+  </g>
+
+  <!-- Floating 3D Holographic Question Mark Crystal Cube (Upper Left of Trophy) -->
+  <g transform="translate(850, 320)" filter="url(#qNeon)">
+    <!-- Top Face -->
+    <polygon points="0,-60 60,-30 0,0 -60,-30" fill="#a855f7" opacity="0.85"/>
+    <!-- Left Face -->
+    <polygon points="-60,-30 0,0 0,60 -60,30" fill="#7c3aed" opacity="0.85"/>
+    <!-- Right Face -->
+    <polygon points="0,0 60,-30 60,30 0,60" fill="#6d28d9" opacity="0.85"/>
+
+    <!-- Holographic Question Mark -->
+    <path d="M -8 -15 C -8 -25 8 -25 8 -15 C 8 -5 0 -2 0 8 M 0 18 V 20" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Floating Question Mark Cube 2 (Lower Right) -->
+  <g transform="translate(1420, 520)" filter="url(#qNeon)">
+    <polygon points="0,-45 45,-22 0,0 -45,-22" fill="#38bdf8" opacity="0.8"/>
+    <polygon points="-45,-22 0,0 0,45 -45,22" fill="#0284c7" opacity="0.8"/>
+    <polygon points="0,0 45,-22 45,22 0,45" fill="#0369a1" opacity="0.8"/>
+    <circle cx="0" cy="0" r="14" fill="#ffffff" opacity="0.4"/>
+  </g>
+
+  <!-- Ambient Light Sparks & Particles -->
+  <g fill="#fde047" opacity="0.7">
+    <circle cx="1020" cy="220" r="3.5"/>
+    <circle cx="1280" cy="260" r="4"/>
+    <circle cx="1340" cy="640" r="3"/>
+    <circle cx="980" cy="620" r="3.5"/>
+    <circle cx="1150" cy="180" r="5"/>
+  </g>
+  <g fill="#a855f7" opacity="0.6">
+    <circle cx="780" cy="420" r="3"/>
+    <circle cx="920" cy="190" r="2.5"/>
+    <circle cx="1400" cy="300" r="3.5"/>
+    <circle cx="1240" cy="720" r="4"/>
+  </g>
+</svg>
+

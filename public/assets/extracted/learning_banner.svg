@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="learnBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#08101a"/>
+      <stop offset="50%" stop-color="#0b1728"/>
+      <stop offset="100%" stop-color="#06121f"/>
+    </linearGradient>
+
+    <radialGradient id="emeraldAura" cx="70%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.5"/>
+      <stop offset="40%" stop-color="#06b6d4" stop-opacity="0.3"/>
+      <stop offset="80%" stop-color="#3b82f6" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#06121f" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="gemGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="50%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+
+    <filter id="emeraldGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="800" height="500" fill="url(#learnBg)"/>
+  <rect width="800" height="500" fill="url(#emeraldAura)"/>
+
+  <!-- Energy Rings on Right Side -->
+  <g transform="translate(620, 250)">
+    <!-- Rotating Hologram Gyroscope Rings -->
+    <ellipse rx="130" ry="50" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="8 6" opacity="0.6" transform="rotate(-30)"/>
+    <ellipse rx="110" ry="40" fill="none" stroke="#22d3ee" stroke-width="2" stroke-dasharray="6 4" opacity="0.75" transform="rotate(40)"/>
+    <ellipse rx="85" ry="30" fill="none" stroke="#a7f3d0" stroke-width="2.5" stroke-dasharray="10 4" opacity="0.85" transform="rotate(-70)"/>
+
+    <!-- Quantum Timer / Crystal Hourglass Structure -->
+    <g filter="url(#emeraldGlow)">
+      <!-- Upper Pyramid -->
+      <polygon points="0,-80 40,-20 -40,-20" fill="url(#gemGrad)" fill-opacity="0.4" stroke="#6ee7b7" stroke-width="2.5"/>
+      <!-- Lower Inverted Pyramid -->
+      <polygon points="0,80 40,20 -40,20" fill="url(#gemGrad)" fill-opacity="0.4" stroke="#6ee7b7" stroke-width="2.5"/>
+      <!-- Energy Beam Center -->
+      <line x1="0" y1="-20" x2="0" y2="20" stroke="#ffffff" stroke-width="4"/>
+      <circle cx="0" cy="0" r="10" fill="#ffffff" filter="url(#emeraldGlow)"/>
+    </g>
+
+    <!-- Floating Spark Particles -->
+    <circle cx="70" cy="-60" r="3.5" fill="#34d399"/>
+    <circle cx="-65" cy="50" r="4" fill="#22d3ee"/>
+    <circle cx="85" cy="40" r="3" fill="#a7f3d0"/>
+    <circle cx="-50" cy="-70" r="3" fill="#67e8f9"/>
+  </g>
+
+  <!-- Ambient Micro Stars -->
+  <g fill="#ffffff" opacity="0.5">
+    <circle cx="100" cy="90" r="1.5"/>
+    <circle cx="220" cy="140" r="1.2"/>
+    <circle cx="350" cy="80" r="1.6"/>
+    <circle cx="480" cy="120" r="1"/>
+    <circle cx="560" cy="60" r="1.8"/>
+  </g>
+</svg>

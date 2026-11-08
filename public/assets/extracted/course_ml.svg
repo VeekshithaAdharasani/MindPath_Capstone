@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <defs>
+    <linearGradient id="mlBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b081c"/>
+      <stop offset="50%" stop-color="#140f33"/>
+      <stop offset="100%" stop-color="#070512"/>
+    </linearGradient>
+
+    <linearGradient id="violetPinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+
+    <radialGradient id="mlGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="mlNeon" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="15" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <pattern id="mlGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#mlBg)"/>
+  <rect width="1600" height="900" fill="url(#mlGrid)"/>
+  <circle cx="800" cy="450" r="520" fill="url(#mlGlow)"/>
+
+  <!-- Neural Network Synapse Lines -->
+  <g stroke="rgba(168, 85, 247, 0.3)" stroke-width="2" fill="none">
+    <!-- Input to Hidden Layer 1 -->
+    <line x1="380" y1="260" x2="620" y2="200"/>
+    <line x1="380" y1="260" x2="620" y2="360"/>
+    <line x1="380" y1="260" x2="620" y2="520"/>
+    <line x1="380" y1="440" x2="620" y2="200"/>
+    <line x1="380" y1="440" x2="620" y2="360"/>
+    <line x1="380" y1="440" x2="620" y2="520"/>
+    <line x1="380" y1="440" x2="620" y2="680"/>
+    <line x1="380" y1="620" x2="620" y2="360"/>
+    <line x1="380" y1="620" x2="620" y2="520"/>
+    <line x1="380" y1="620" x2="620" y2="680"/>
+
+    <!-- Hidden Layer 1 to Central Core -->
+    <line x1="620" y1="200" x2="800" y2="300" stroke="rgba(236, 72, 153, 0.4)" stroke-width="2.5"/>
+    <line x1="620" y1="360" x2="800" y2="450" stroke="rgba(236, 72, 153, 0.4)" stroke-width="2.5"/>
+    <line x1="620" y1="520" x2="800" y2="450" stroke="rgba(236, 72, 153, 0.4)" stroke-width="2.5"/>
+    <line x1="620" y1="680" x2="800" y2="600" stroke="rgba(236, 72, 153, 0.4)" stroke-width="2.5"/>
+
+    <!-- Central Core to Hidden Layer 2 -->
+    <line x1="800" y1="300" x2="980" y2="200" stroke="rgba(236, 72, 153, 0.4)" stroke-width="2.5"/>
+    <line x1="800" y1="450" x2="980" y2="360" stroke="rgba(236, 72, 153, 0.4)" stroke-width="2.5"/>
+    <line x1="800" y1="450" x2="980" y2="520" stroke="rgba(236, 72, 153, 0.4)" stroke-width="2.5"/>
+    <line x1="800" y1="600" x2="980" y2="680" stroke="rgba(236, 72, 153, 0.4)" stroke-width="2.5"/>
+
+    <!-- Hidden Layer 2 to Output -->
+    <line x1="980" y1="200" x2="1220" y2="320"/>
+    <line x1="980" y1="360" x2="1220" y2="320"/>
+    <line x1="980" y1="360" x2="1220" y2="560"/>
+    <line x1="980" y1="520" x2="1220" y2="320"/>
+    <line x1="980" y1="520" x2="1220" y2="560"/>
+    <line x1="980" y1="680" x2="1220" y2="560"/>
+  </g>
+
+  <!-- Central Pulsing AI Brain Core Ring -->
+  <g transform="translate(800, 450)" filter="url(#mlNeon)">
+    <circle cx="0" cy="0" r="160" fill="none" stroke="url(#violetPinkGrad)" stroke-width="4" stroke-dasharray="24 12"/>
+    <circle cx="0" cy="0" r="110" fill="none" stroke="#a855f7" stroke-width="2" stroke-dasharray="12 8"/>
+    <circle cx="0" cy="0" r="70" fill="url(#violetPinkGrad)" opacity="0.8"/>
+  </g>
+
+  <!-- Neural Nodes -->
+  <g filter="url(#mlNeon)">
+    <!-- Input Layer Nodes -->
+    <circle cx="380" cy="260" r="12" fill="#818cf8"/>
+    <circle cx="380" cy="440" r="14" fill="#818cf8"/>
+    <circle cx="380" cy="620" r="12" fill="#818cf8"/>
+
+    <!-- Hidden Layer 1 Nodes -->
+    <circle cx="620" cy="200" r="14" fill="#a855f7"/>
+    <circle cx="620" cy="360" r="16" fill="#c084fc"/>
+    <circle cx="620" cy="520" r="16" fill="#c084fc"/>
+    <circle cx="620" cy="680" r="14" fill="#a855f7"/>
+
+    <!-- Hidden Layer 2 Nodes -->
+    <circle cx="980" cy="200" r="14" fill="#f472b6"/>
+    <circle cx="980" cy="360" r="16" fill="#ec4899"/>
+    <circle cx="980" cy="520" r="16" fill="#ec4899"/>
+    <circle cx="980" cy="680" r="14" fill="#f472b6"/>
+
+    <!-- Output Nodes -->
+    <circle cx="1220" cy="320" r="15" fill="#f43f5e"/>
+    <circle cx="1220" cy="560" r="15" fill="#f43f5e"/>
+  </g>
+
+  <!-- Ambient Shimmer Particles -->
+  <g fill="#ec4899" opacity="0.6">
+    <circle cx="280" cy="320" r="3"/>
+    <circle cx="500" cy="140" r="2.5"/>
+    <circle cx="750" cy="180" r="3.5"/>
+    <circle cx="850" cy="740" r="3"/>
+    <circle cx="1120" cy="160" r="2.5"/>
+    <circle cx="1320" cy="460" r="3"/>
+    <circle cx="1380" cy="680" r="3.5"/>
+  </g>
+</svg>
+

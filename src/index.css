@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #0c0e1a;
+    --card-bg: #14172f;
+    --card-border: rgba(255, 255, 255, 0.08);
+  }
+
+  * {
+    -webkit-user-drag: none;
+  }
+
+  body {
+    background-color: #0c0e1a;
+    color: #e2e8f0;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Universal image anti-drag, selection & ghosting prevention */
+  img, svg, picture, a img, button img {
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0d1022;
+}
+::-webkit-scrollbar-thumb {
+  background: #232850;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #373e72;
+}
+
+/* Glowing card subtle border */
+.card-glow {
+  background: #14172f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-glow:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 24px -4px rgba(79, 70, 229, 0.15);
+}
+
+.gradient-purple-blue {
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+}
+
+.gradient-blue-cyan {
+  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+}
+
+.grid-cols-16 {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom Visible Horizontal Table Scrollbar */
+.custom-table-scrollbar::-webkit-scrollbar {
+  height: 8px;
+}
+.custom-table-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 9999px;
+  margin: 0 4px;
+}
+.custom-table-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #9333ea, #6366f1);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.custom-table-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #a855f7, #818cf8);
+}
+.custom-table-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #9333ea rgba(255, 255, 255, 0.05);
+}

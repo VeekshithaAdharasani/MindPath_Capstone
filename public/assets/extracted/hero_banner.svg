@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="heroBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080a18"/>
+      <stop offset="50%" stop-color="#0e1233"/>
+      <stop offset="85%" stop-color="#151a44"/>
+      <stop offset="100%" stop-color="#0a0c1e"/>
+    </linearGradient>
+
+    <!-- Quantum Core Gradient -->
+    <radialGradient id="quantumCore" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="1"/>
+      <stop offset="30%" stop-color="#6366f1" stop-opacity="0.8"/>
+      <stop offset="70%" stop-color="#8b5cf6" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="nebulaAura" cx="75%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.35"/>
+      <stop offset="45%" stop-color="#4f46e5" stop-opacity="0.2"/>
+      <stop offset="80%" stop-color="#06b6d4" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#080a18" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Filters -->
+    <filter id="intenseGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="blur1"/>
+      <feGaussianBlur stdDeviation="6" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="subtleGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="1600" height="500" fill="url(#heroBgGrad)"/>
+  <rect width="1600" height="500" fill="url(#nebulaAura)"/>
+
+  <!-- Subtle Horizon Grid -->
+  <g opacity="0.2" stroke="#6366f1" stroke-width="1">
+    <line x1="300" y1="500" x2="1200" y2="240"/>
+    <line x1="550" y1="500" x2="1220" y2="240"/>
+    <line x1="800" y1="500" x2="1240" y2="240"/>
+    <line x1="1050" y1="500" x2="1260" y2="240"/>
+    <line x1="1300" y1="500" x2="1280" y2="240"/>
+    <line x1="1550" y1="500" x2="1300" y2="240"/>
+    <line x1="400" y1="460" x2="1550" y2="460"/>
+    <line x1="600" y1="400" x2="1500" y2="400"/>
+    <line x1="800" y1="330" x2="1450" y2="330"/>
+    <line x1="1000" y1="270" x2="1400" y2="270"/>
+  </g>
+
+  <!-- Quantum AI Core Orb Structure on the Right Side -->
+  <g transform="translate(1250, 240)">
+    <!-- Expansive Ambient Nebula -->
+    <circle r="220" fill="url(#quantumCore)" opacity="0.6"/>
+
+    <!-- Concentric Holographic Gyroscope Rings -->
+    <!-- Outer Ring 1 -->
+    <ellipse rx="170" ry="75" fill="none" stroke="#818cf8" stroke-width="2.5" stroke-dasharray="8 6" opacity="0.75" transform="rotate(-25)" filter="url(#subtleGlow)"/>
+    <!-- Outer Ring 2 -->
+    <ellipse rx="160" ry="60" fill="none" stroke="#22d3ee" stroke-width="2" stroke-dasharray="14 8" opacity="0.8" transform="rotate(35)" filter="url(#subtleGlow)"/>
+    <!-- Middle Ring 3 -->
+    <ellipse rx="130" ry="45" fill="none" stroke="#f472b6" stroke-width="2" stroke-dasharray="5 5" opacity="0.7" transform="rotate(-65)"/>
+    <!-- Inner Gyro Ring -->
+    <ellipse rx="95" ry="32" fill="none" stroke="#c084fc" stroke-width="3" stroke-dasharray="10 4" opacity="0.9" transform="rotate(15)" filter="url(#subtleGlow)"/>
+
+    <!-- Orbiting Energy Particles -->
+    <circle cx="150" cy="-60" r="4.5" fill="#38bdf8" filter="url(#intenseGlow)"/>
+    <circle cx="-135" cy="55" r="4" fill="#ec4899" filter="url(#intenseGlow)"/>
+    <circle cx="90" cy="110" r="5" fill="#a855f7" filter="url(#intenseGlow)"/>
+    <circle cx="-100" cy="-70" r="3.5" fill="#34d399" filter="url(#intenseGlow)"/>
+
+    <!-- Inner Floating Icosahedron / Crystal Core -->
+    <g transform="scale(0.85)">
+      <!-- Inner Glow Sphere -->
+      <circle r="42" fill="#0f172a" stroke="#38bdf8" stroke-width="3" filter="url(#subtleGlow)"/>
+      <circle r="36" fill="#1e1b4b" opacity="0.9"/>
+      
+      <!-- Crystal Facets -->
+      <polygon points="0,-35 30,-12 30,22 0,35 -30,22 -30,-12" fill="none" stroke="#818cf8" stroke-width="2" opacity="0.9"/>
+      <polygon points="0,-35 0,35 30,-12 -30,-12" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.8"/>
+      <polygon points="0,-35 0,35 30,22 -30,22" fill="none" stroke="#c084fc" stroke-width="1.5" opacity="0.7"/>
+      
+      <!-- Core Pulsing Light -->
+      <circle r="12" fill="#ffffff" filter="url(#intenseGlow)"/>
+    </g>
+  </g>
+
+  <!-- Flowing Dynamic Light Ribbons across Bottom Right -->
+  <path d="M 450 500 C 700 480, 950 420, 1150 340 C 1300 280, 1420 220, 1580 180" 
+        fill="none" stroke="#6366f1" stroke-width="6" opacity="0.3" filter="url(#subtleGlow)"/>
+  <path d="M 550 500 C 800 470, 1020 390, 1200 310 C 1350 250, 1470 200, 1600 170" 
+        fill="none" stroke="#06b6d4" stroke-width="4" opacity="0.6" filter="url(#subtleGlow)"/>
+  <path d="M 680 500 C 900 460, 1100 360, 1280 270 C 1400 210, 1500 160, 1600 140" 
+        fill="none" stroke="#e0f2fe" stroke-width="1.5" opacity="0.9"/>
+
+  <!-- Star Constellations & Intel Particles -->
+  <g fill="#ffffff" opacity="0.7">
+    <circle cx="200" cy="80" r="1.5"/>
+    <circle cx="320" cy="130" r="1.2"/>
+    <circle cx="450" cy="65" r="1.8"/>
+    <circle cx="580" cy="110" r="1"/>
+    <circle cx="720" cy="75" r="1.5"/>
+    <circle cx="850" cy="140" r="1.2"/>
+    <circle cx="980" cy="85" r="1.8" filter="url(#subtleGlow)"/>
+    <circle cx="1080" cy="50" r="1.4"/>
+    <circle cx="1400" cy="70" r="1.8"/>
+    <circle cx="1520" cy="120" r="1.3"/>
+  </g>
+
+  <!-- Constellation Linking Lines -->
+  <g stroke="#818cf8" stroke-width="0.8" opacity="0.25">
+    <line x1="450" y1="65" x2="580" y2="110"/>
+    <line x1="580" y1="110" x2="720" y2="75"/>
+    <line x1="720" y1="75" x2="850" y2="140"/>
+    <line x1="850" y1="140" x2="980" y2="85"/>
+  </g>
+</svg>

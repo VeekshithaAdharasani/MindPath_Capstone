@@ -1,0 +1,67 @@
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  passwordHash: text('password_hash'),
+  avatarUrl: text('avatar_url').default('/assets/extracted/default_avatar.svg'),
+  educationLevel: text('education_level').default('Class 12'),
+  careerInterest: text('career_interest').default('Computer Science'),
+  streakDays: integer('streak_days').default(1),
+  totalStudyHours: integer('total_study_hours').default(0),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const tasks = sqliteTable('tasks', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  title: text('title').notNull(),
+  timeText: text('time_text').notNull(),
+  category: text('category').default('Tasks'),
+  completed: integer('completed').notNull().default(0), // 0 or 1
+  orderIndex: integer('order_index').default(0),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const milestones = sqliteTable('milestones', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  title: text('title').notNull(),
+  timeText: text('time_text').notNull(),
+  status: text('status').notNull().default('active'), // completed, active, upcoming
+  iconType: text('icon_type').notNull().default('book'), // book, assessment, project, exam
+  orderIndex: integer('order_index').notNull().default(0),
+});
+
+export const reminders = sqliteTable('reminders', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  title: text('title').notNull(),
+  timeText: text('time_text').notNull(),
+  category: text('category').notNull().default('Tasks'), // Tasks, Exams, Learning
+  enabled: integer('enabled').notNull().default(1),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const quizAttempts = sqliteTable('quiz_attempts', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  quizTitle: text('quiz_title').notNull(),
+  category: text('category').notNull(),
+  score: integer('score').notNull(),
+  totalQuestions: integer('total_questions').notNull(),
+  weakTopics: text('weak_topics').default(''),
+  completedAt: integer('completed_at').notNull(),
+});
+
+export const careerPaths = sqliteTable('career_paths', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  category: text('category').notNull(),
+  matchScore: integer('match_score').notNull(),
+  salaryRange: text('salary_range').notNull(),
+  scope: text('scope').notNull(),
+  description: text('description').notNull(),
+  skills: text('skills').notNull(), // JSON array
+});

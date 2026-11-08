@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <defs>
+    <linearGradient id="dsBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080c1d"/>
+      <stop offset="50%" stop-color="#0f1433"/>
+      <stop offset="100%" stop-color="#060815"/>
+    </linearGradient>
+
+    <linearGradient id="cyanBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+
+    <linearGradient id="indigoPurpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+
+    <radialGradient id="dsGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="dsNeon" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <pattern id="dsGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#dsBg)"/>
+  <rect width="1600" height="900" fill="url(#dsGrid)"/>
+  <circle cx="800" cy="450" r="500" fill="url(#dsGlow)"/>
+
+  <!-- Perspective Floor Grid -->
+  <g stroke="rgba(6, 182, 212, 0.15)" stroke-width="1.5" fill="none">
+    <path d="M 300 750 L 800 500 L 1300 750"/>
+    <path d="M 450 750 L 800 500 L 1150 750"/>
+    <path d="M 600 750 L 800 500 L 1000 750"/>
+    <path d="M 400 680 H 1200"/>
+    <path d="M 500 620 H 1100"/>
+    <path d="M 600 570 H 1000"/>
+  </g>
+
+  <!-- 3D Holographic Bar Charts -->
+  <g transform="translate(480, 260)" filter="url(#dsNeon)">
+    <!-- Bar 1 -->
+    <path d="M 40 320 V 160 L 90 130 V 290 Z" fill="#0284c7" opacity="0.8"/>
+    <path d="M 90 130 L 140 160 V 320 L 90 290 Z" fill="#38bdf8" opacity="0.9"/>
+    <polygon points="40,160 90,130 140,160 90,190" fill="#7dd3fc"/>
+
+    <!-- Bar 2 -->
+    <path d="M 180 320 V 100 L 230 70 V 290 Z" fill="#2563eb" opacity="0.8"/>
+    <path d="M 230 70 L 280 100 V 320 L 230 290 Z" fill="#60a5fa" opacity="0.9"/>
+    <polygon points="180,100 230,70 280,100 230,130" fill="#93c5fd"/>
+
+    <!-- Bar 3 (Peak) -->
+    <path d="M 320 320 V 40 L 370 10 V 290 Z" fill="#4f46e5" opacity="0.8"/>
+    <path d="M 370 10 L 420 40 V 320 L 370 290 Z" fill="#818cf8" opacity="0.9"/>
+    <polygon points="320,40 370,10 420,40 370,70" fill="#c7d2fe"/>
+
+    <!-- Bar 4 -->
+    <path d="M 460 320 V 120 L 510 90 V 290 Z" fill="#7c3aed" opacity="0.8"/>
+    <path d="M 510 90 L 560 120 V 320 L 510 290 Z" fill="#a78bfa" opacity="0.9"/>
+    <polygon points="460,120 510,90 560,120 510,150" fill="#ddd6fe"/>
+  </g>
+
+  <!-- Glowing Trend Curve Ribbon -->
+  <path d="M 400 520 C 560 480 680 360 840 280 C 960 220 1120 280 1250 200" fill="none" stroke="url(#cyanBlueGrad)" stroke-width="5" filter="url(#dsNeon)"/>
+
+  <!-- Data Scatter Points & Connections -->
+  <g fill="#06b6d4" stroke="#ffffff" stroke-width="2">
+    <circle cx="560" cy="460" r="8"/>
+    <circle cx="700" cy="380" r="9"/>
+    <circle cx="850" cy="280" r="11"/>
+    <circle cx="1020" cy="250" r="9"/>
+    <circle cx="1200" cy="210" r="10"/>
+  </g>
+
+  <!-- Ambient Light Sparks -->
+  <g fill="#38bdf8" opacity="0.7">
+    <circle cx="300" cy="320" r="3"/>
+    <circle cx="420" cy="210" r="2.5"/>
+    <circle cx="1280" cy="380" r="3.5"/>
+    <circle cx="1380" cy="520" r="2"/>
+    <circle cx="780" cy="180" r="3"/>
+    <circle cx="920" cy="620" r="4"/>
+  </g>
+</svg>
+

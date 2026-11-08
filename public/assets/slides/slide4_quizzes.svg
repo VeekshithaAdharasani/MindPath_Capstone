@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" fill="none">
+  <defs>
+    <linearGradient id="bgGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e1329" />
+      <stop offset="100%" stop-color="#080a14" />
+    </linearGradient>
+    <linearGradient id="cardGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141838" />
+      <stop offset="100%" stop-color="#0d1024" />
+    </linearGradient>
+    <linearGradient id="btnGrad4" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="500" rx="24" fill="url(#bgGrad4)" stroke="#ffffff" stroke-opacity="0.1" stroke-width="2"/>
+
+  <!-- Top Window Header Bar -->
+  <rect x="0" y="0" width="800" height="42" fill="#111636" rx="24" />
+  <rect x="0" y="24" width="800" height="18" fill="#111636" />
+  <line x1="0" y1="42" x2="800" y2="42" stroke="#ffffff" stroke-opacity="0.08" />
+  
+  <circle cx="28" cy="21" r="5" fill="#ef4444" opacity="0.8" />
+  <circle cx="44" cy="21" r="5" fill="#f59e0b" opacity="0.8" />
+  <circle cx="60" cy="21" r="5" fill="#10b981" opacity="0.8" />
+
+  <text x="400" y="26" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#94a3b8">
+    Adaptive Quizzes &amp; Tests • Instant Accuracy Validation &amp; Explanations
+  </text>
+
+  <!-- Quiz Header Bar with Timer & Progress -->
+  <g transform="translate(32, 58)">
+    <rect width="736" height="56" rx="14" fill="url(#cardGrad4)" stroke="#ffffff" stroke-opacity="0.08" />
+    <text x="24" y="26" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#ffffff">
+      Mathematics &amp; Calculus Mastery
+    </text>
+    <text x="24" y="42" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="#94a3b8">
+      Question 4 of 10 • Subject Mock Assessment
+    </text>
+
+    <!-- Timer Badge -->
+    <g transform="translate(600, 14)">
+      <rect width="112" height="28" rx="8" fill="#f59e0b" fill-opacity="0.15" stroke="#f59e0b" stroke-opacity="0.4"/>
+      <text x="56" y="18" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#fbbf24">
+        ⏱️ 11:24 Remaining
+      </text>
+    </g>
+  </g>
+
+  <!-- Question Card Left -->
+  <g transform="translate(32, 126)">
+    <rect width="490" height="348" rx="18" fill="url(#cardGrad4)" stroke="#ffffff" stroke-opacity="0.08" />
+    
+    <text x="24" y="36" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#a78bfa" letter-spacing="1">
+      QUESTION 4 • CALCULUS DERIVATIVE
+    </text>
+    <text x="24" y="66" font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#ffffff">
+      What is the derivative of f(x) = 3x² + 5x - 7 with respect to x?
+    </text>
+
+    <!-- Option A (Correct Selected) -->
+    <g transform="translate(24, 94)">
+      <rect width="442" height="42" rx="10" fill="#10b981" fill-opacity="0.15" stroke="#10b981" stroke-width="1.5"/>
+      <circle cx="20" cy="21" r="7" fill="#10b981" />
+      <text x="17" y="24" font-family="system-ui, sans-serif" font-size="10" font-weight="900" fill="#ffffff">✓</text>
+      <text x="38" y="25" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#34d399">
+        6x + 5
+      </text>
+      <text x="370" y="25" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#10b981">CORRECT</text>
+    </g>
+
+    <!-- Option B -->
+    <g transform="translate(24, 146)">
+      <rect width="442" height="42" rx="10" fill="#191f42" stroke="#ffffff" stroke-opacity="0.06"/>
+      <circle cx="20" cy="21" r="7" fill="none" stroke="#64748b" stroke-width="1.5"/>
+      <text x="38" y="25" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#94a3b8">
+        3x + 5
+      </text>
+    </g>
+
+    <!-- Option C -->
+    <g transform="translate(24, 198)">
+      <rect width="442" height="42" rx="10" fill="#191f42" stroke="#ffffff" stroke-opacity="0.06"/>
+      <circle cx="20" cy="21" r="7" fill="none" stroke="#64748b" stroke-width="1.5"/>
+      <text x="38" y="25" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#94a3b8">
+        6x² + 5
+      </text>
+    </g>
+
+    <!-- Step-by-Step AI Explanation Box -->
+    <g transform="translate(24, 252)">
+      <rect width="442" height="76" rx="10" fill="#0f172a" stroke="#38bdf8" stroke-opacity="0.3"/>
+      <text x="16" y="22" font-family="system-ui, sans-serif" font-size="10" font-weight="800" fill="#38bdf8">
+        💡 Step-by-Step Mathematical Explanation:
+      </text>
+      <text x="16" y="40" font-family="system-ui, sans-serif" font-size="11" font-weight="400" fill="#94a3b8">
+        Using the power rule: d/dx(3x²) = 6x, and d/dx(5x) = 5.
+      </text>
+      <text x="16" y="58" font-family="system-ui, sans-serif" font-size="11" font-weight="400" fill="#94a3b8">
+        The derivative of a constant (-7) is 0. Therefore, f'(x) = 6x + 5.
+      </text>
+    </g>
+  </g>
+
+  <!-- Scorecard & Performance Stats Right -->
+  <g transform="translate(538, 126)">
+    <rect width="230" height="348" rx="18" fill="url(#cardGrad4)" stroke="#ffffff" stroke-opacity="0.08" />
+
+    <text x="20" y="32" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#ffffff">
+      Session Performance
+    </text>
+
+    <!-- Accuracy Ring Simulation -->
+    <g transform="translate(115, 100)">
+      <circle cx="0" cy="0" r="46" fill="none" stroke="#1e293b" stroke-width="8"/>
+      <circle cx="0" cy="0" r="46" fill="none" stroke="#10b981" stroke-width="8" stroke-dasharray="290" stroke-dashoffset="30" stroke-linecap="round"/>
+      <text x="0" y="6" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="900" fill="#ffffff">90%</text>
+      <text x="0" y="22" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="600" fill="#10b981">ACCURACY</text>
+    </g>
+
+    <!-- Metrics Cards -->
+    <g transform="translate(20, 175)">
+      <!-- Metric 1 -->
+      <rect width="190" height="42" rx="10" fill="#181d3f" />
+      <text x="14" y="20" font-family="system-ui, sans-serif" font-size="9" font-weight="600" fill="#94a3b8">Correct Answers</text>
+      <text x="14" y="34" font-family="system-ui, sans-serif" font-size="12" font-weight="800" fill="#34d399">9 of 10 Verified</text>
+
+      <!-- Metric 2 -->
+      <g transform="translate(0, 48)">
+        <rect width="190" height="42" rx="10" fill="#181d3f" />
+        <text x="14" y="20" font-family="system-ui, sans-serif" font-size="9" font-weight="600" fill="#94a3b8">Average Response Speed</text>
+        <text x="14" y="34" font-family="system-ui, sans-serif" font-size="12" font-weight="800" fill="#38bdf8">42 sec / Question</text>
+      </g>
+    </g>
+
+    <g transform="translate(20, 288)">
+      <rect width="190" height="40" rx="10" fill="url(#btnGrad4)" />
+      <text x="95" y="24" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#ffffff">
+        Next Question →
+      </text>
+    </g>
+  </g>
+</svg>
+

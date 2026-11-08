@@ -1,0 +1,198 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080a16"/>
+      <stop offset="40%" stop-color="#0f132e"/>
+      <stop offset="80%" stop-color="#141738"/>
+      <stop offset="100%" stop-color="#090b18"/>
+    </linearGradient>
+
+    <!-- Neon Highway Gradients -->
+    <linearGradient id="cyanHighway" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.1"/>
+      <stop offset="30%" stop-color="#06b6d4" stop-opacity="0.9"/>
+      <stop offset="70%" stop-color="#3b82f6" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.2"/>
+    </linearGradient>
+
+    <linearGradient id="magentaHighway" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ec4899" stop-opacity="0.1"/>
+      <stop offset="40%" stop-color="#ec4899" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#a855f7" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0.2"/>
+    </linearGradient>
+
+    <linearGradient id="emeraldHighway" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.2"/>
+      <stop offset="50%" stop-color="#06b6d4" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Hologram Node Glows -->
+    <radialGradient id="nodeGlowCyan" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="1"/>
+      <stop offset="35%" stop-color="#06b6d4" stop-opacity="0.6"/>
+      <stop offset="70%" stop-color="#0891b2" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="nodeGlowPurple" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c084fc" stop-opacity="1"/>
+      <stop offset="40%" stop-color="#a855f7" stop-opacity="0.6"/>
+      <stop offset="80%" stop-color="#7e22ce" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#7e22ce" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="cityHorizon" cx="75%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.45"/>
+      <stop offset="40%" stop-color="#a855f7" stop-opacity="0.2"/>
+      <stop offset="70%" stop-color="#0c0e1a" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#080a16" stop-opacity="1"/>
+    </radialGradient>
+
+    <!-- Filters -->
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="1600" height="500" fill="url(#bgGrad)"/>
+  <rect width="1600" height="500" fill="url(#cityHorizon)"/>
+
+  <!-- Perspective Perspective Ground Grid -->
+  <g opacity="0.25" stroke="#4f46e5" stroke-width="1">
+    <line x1="200" y1="500" x2="1100" y2="220" />
+    <line x1="450" y1="500" x2="1120" y2="220" />
+    <line x1="700" y1="500" x2="1140" y2="220" />
+    <line x1="950" y1="500" x2="1160" y2="220" />
+    <line x1="1200" y1="500" x2="1180" y2="220" />
+    <line x1="1450" y1="500" x2="1200" y2="220" />
+    <!-- Horizontal Grid Lines -->
+    <line x1="300" y1="460" x2="1550" y2="460" stroke-opacity="0.8" />
+    <line x1="450" y1="400" x2="1500" y2="400" stroke-opacity="0.6" />
+    <line x1="600" y1="340" x2="1450" y2="340" stroke-opacity="0.4" />
+    <line x1="750" y1="290" x2="1400" y2="290" stroke-opacity="0.3" />
+    <line x1="900" y1="250" x2="1350" y2="250" stroke-opacity="0.2" />
+  </g>
+
+  <!-- Distant Futuristic Skyline Silhouette on Right -->
+  <g opacity="0.45" fill="#181c44">
+    <rect x="1050" y="110" width="34" height="150" rx="3" />
+    <rect x="1100" y="70" width="45" height="190" rx="4" />
+    <polygon points="1122,35 1110,70 1135,70" fill="#3b82f6" opacity="0.6" />
+    <rect x="1160" y="130" width="40" height="130" rx="2" />
+    <rect x="1220" y="90" width="55" height="170" rx="4" />
+    <polygon points="1247,50 1230,90 1265,90" fill="#8b5cf6" opacity="0.6" />
+    <rect x="1290" y="140" width="35" height="120" rx="3" />
+    <rect x="1340" y="80" width="60" height="180" rx="4" />
+    <rect x="1420" y="110" width="50" height="150" rx="3" />
+  </g>
+
+  <!-- Skyline Glowing Light Strips -->
+  <g stroke="#38bdf8" stroke-width="1.5" opacity="0.7">
+    <line x1="1122" y1="75" x2="1122" y2="250" />
+    <line x1="1247" y1="95" x2="1247" y2="250" stroke="#c084fc" />
+    <line x1="1370" y1="85" x2="1370" y2="250" />
+  </g>
+
+  <!-- Major Glowing Curved Fiber-Optic Pathways -->
+  <!-- Highway 1: Cyan-Blue Main Arterial Pathway -->
+  <path d="M 380 480 C 580 470, 720 400, 850 330 C 980 260, 1080 240, 1200 230"
+        fill="none" stroke="#0891b2" stroke-width="14" opacity="0.3" />
+  <path d="M 380 480 C 580 470, 720 400, 850 330 C 980 260, 1080 240, 1200 230"
+        fill="none" stroke="url(#cyanHighway)" stroke-width="6" filter="url(#neonGlow)" />
+  <path d="M 380 480 C 580 470, 720 400, 850 330 C 980 260, 1080 240, 1200 230"
+        fill="none" stroke="#e0f2fe" stroke-width="2" />
+
+  <!-- Highway 2: Magenta-Purple Branching Innovation Pathway -->
+  <path d="M 520 500 C 660 480, 800 450, 930 380 C 1050 320, 1160 270, 1320 250"
+        fill="none" stroke="#7e22ce" stroke-width="12" opacity="0.3" />
+  <path d="M 520 500 C 660 480, 800 450, 930 380 C 1050 320, 1160 270, 1320 250"
+        fill="none" stroke="url(#magentaHighway)" stroke-width="5" filter="url(#neonGlow)" />
+  <path d="M 520 500 C 660 480, 800 450, 930 380 C 1050 320, 1160 270, 1320 250"
+        fill="none" stroke="#fdf4ff" stroke-width="1.8" />
+
+  <!-- Highway 3: Emerald/Cyan Fast Track -->
+  <path d="M 680 500 C 800 460, 940 430, 1060 360 C 1180 300, 1280 270, 1450 260"
+        fill="none" stroke="url(#emeraldHighway)" stroke-width="4" filter="url(#softGlow)" />
+
+  <!-- Holographic Career Nodes / Glowing Portal Orbs -->
+  <!-- Node A: AI / Neural Hub (Cyan) -->
+  <g transform="translate(850, 330)">
+    <circle r="45" fill="url(#nodeGlowCyan)" />
+    <circle r="14" fill="#0c112e" stroke="#22d3ee" stroke-width="3" filter="url(#softGlow)" />
+    <circle r="5" fill="#ffffff" />
+    <!-- Node Ring -->
+    <ellipse rx="26" ry="12" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.8" />
+  </g>
+
+  <!-- Node B: Software & Cloud Architecture Hub (Purple) -->
+  <g transform="translate(930, 380)">
+    <circle r="50" fill="url(#nodeGlowPurple)" />
+    <circle r="15" fill="#140f33" stroke="#c084fc" stroke-width="3" filter="url(#softGlow)" />
+    <circle r="5.5" fill="#ffffff" />
+    <ellipse rx="30" ry="14" fill="none" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.8" />
+  </g>
+
+  <!-- Node C: Data Intelligence Hub (Blue) -->
+  <g transform="translate(1060, 360)">
+    <circle r="40" fill="url(#nodeGlowCyan)" />
+    <circle r="12" fill="#0f172a" stroke="#60a5fa" stroke-width="2.5" />
+    <circle r="4" fill="#ffffff" />
+  </g>
+
+  <!-- Node D: Apex Career Destination (Multicolor Glow) -->
+  <g transform="translate(1200, 230)">
+    <circle r="60" fill="url(#nodeGlowPurple)" opacity="0.7" />
+    <circle r="18" fill="#1e1b4b" stroke="#a855f7" stroke-width="3.5" filter="url(#neonGlow)" />
+    <circle r="7" fill="#ffffff" />
+    <circle r="30" fill="none" stroke="#c084fc" stroke-width="1" stroke-dasharray="3 3" opacity="0.6" />
+    <circle r="42" fill="none" stroke="#38bdf8" stroke-width="1" stroke-dasharray="6 4" opacity="0.4" />
+  </g>
+
+  <!-- Floating Holographic Data Chips & Cubes -->
+  <!-- Chip 1 -->
+  <g transform="translate(730, 260) rotate(15)">
+    <rect x="-24" y="-18" width="48" height="36" rx="6" fill="#1e1b4b" fill-opacity="0.8" stroke="#818cf8" stroke-width="1.5" filter="url(#softGlow)" />
+    <line x1="-15" y1="-8" x2="15" y2="-8" stroke="#38bdf8" stroke-width="2" />
+    <line x1="-15" y1="0" x2="8" y2="0" stroke="#a78bfa" stroke-width="2" />
+    <line x1="-15" y1="8" x2="12" y2="8" stroke="#34d399" stroke-width="2" />
+  </g>
+
+  <!-- Chip 2 -->
+  <g transform="translate(1010, 220) rotate(-10)">
+    <rect x="-20" y="-15" width="40" height="30" rx="5" fill="#0f172a" fill-opacity="0.8" stroke="#38bdf8" stroke-width="1.5" filter="url(#softGlow)" />
+    <circle cx="0" cy="0" r="6" fill="none" stroke="#22d3ee" stroke-width="1.5" />
+    <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
+  </g>
+
+  <!-- Starfield & Ambient Micro-Particles -->
+  <g fill="#ffffff" opacity="0.6">
+    <circle cx="250" cy="90" r="1.5" />
+    <circle cx="340" cy="140" r="1.2" opacity="0.4" />
+    <circle cx="480" cy="80" r="1.8" />
+    <circle cx="620" cy="110" r="1" opacity="0.5" />
+    <circle cx="750" cy="70" r="1.6" />
+    <circle cx="880" cy="130" r="1.2" />
+    <circle cx="970" cy="60" r="2" opacity="0.9" filter="url(#softGlow)" />
+    <circle cx="1090" cy="40" r="1.5" />
+    <circle cx="1230" cy="75" r="1.8" />
+    <circle cx="1360" cy="45" r="1.3" />
+    <circle cx="1480" cy="95" r="1.7" />
+  </g>
+</svg>

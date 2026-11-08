@@ -1,0 +1,6 @@
+{
+  "name": "MindPath - Your AI Companion",
+  "description": "An intelligent companion for personal growth, learning, career exploration, and goal achievement.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

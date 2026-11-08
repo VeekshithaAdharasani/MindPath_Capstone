@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <defs>
+    <linearGradient id="webBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06121a"/>
+      <stop offset="50%" stop-color="#0b1e2c"/>
+      <stop offset="100%" stop-color="#040b10"/>
+    </linearGradient>
+
+    <linearGradient id="reactCyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe"/>
+      <stop offset="100%" stop-color="#4facfe"/>
+    </linearGradient>
+
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+
+    <radialGradient id="webGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#00f2fe" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="webNeon" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <pattern id="webGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#webBg)"/>
+  <rect width="1600" height="900" fill="url(#webGrid)"/>
+  <circle cx="800" cy="450" r="500" fill="url(#webGlow)"/>
+
+  <!-- Floating Glassmorphic Browser Frame -->
+  <g transform="translate(350, 180)" opacity="0.6">
+    <rect width="900" height="540" rx="24" fill="rgba(255,255,255,0.02)" stroke="rgba(0, 242, 254, 0.25)" stroke-width="2"/>
+    <!-- Window controls -->
+    <circle cx="36" cy="36" r="8" fill="#ef4444" opacity="0.8"/>
+    <circle cx="64" cy="36" r="8" fill="#f59e0b" opacity="0.8"/>
+    <circle cx="92" cy="36" r="8" fill="#10b981" opacity="0.8"/>
+    <line x1="20" y1="72" x2="880" y2="72" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+  </g>
+
+  <!-- React 3D Orbital Emblem -->
+  <g transform="translate(800, 450)" filter="url(#webNeon)">
+    <!-- Central Core -->
+    <circle cx="0" cy="0" r="32" fill="url(#reactCyanGrad)"/>
+
+    <!-- Orbital 1 (Horizontal) -->
+    <ellipse cx="0" cy="0" rx="340" ry="120" fill="none" stroke="url(#reactCyanGrad)" stroke-width="5"/>
+
+    <!-- Orbital 2 (Rotated 60deg) -->
+    <g transform="rotate(60)">
+      <ellipse cx="0" cy="0" rx="340" ry="120" fill="none" stroke="url(#emeraldGrad)" stroke-width="5"/>
+    </g>
+
+    <!-- Orbital 3 (Rotated -60deg) -->
+    <g transform="rotate(-60)">
+      <ellipse cx="0" cy="0" rx="340" ry="120" fill="none" stroke="url(#reactCyanGrad)" stroke-width="5"/>
+    </g>
+
+    <!-- Orbiting Electrons -->
+    <circle cx="280" cy="70" r="12" fill="#ffffff" filter="url(#webNeon)"/>
+    <g transform="rotate(60)">
+      <circle cx="-280" cy="-70" r="12" fill="#34d399" filter="url(#webNeon)"/>
+    </g>
+    <g transform="rotate(-60)">
+      <circle cx="200" cy="100" r="12" fill="#67e8f9" filter="url(#webNeon)"/>
+    </g>
+  </g>
+
+  <!-- Ambient Code Tags & Brackets (Abstract) -->
+  <g stroke="rgba(0, 242, 254, 0.3)" stroke-width="3" stroke-linecap="round" fill="none">
+    <!-- Left Bracket < -->
+    <path d="M 220 400 L 160 450 L 220 500"/>
+    <!-- Right Bracket > -->
+    <path d="M 1380 400 L 1440 450 L 1380 500"/>
+  </g>
+
+  <!-- Ambient Particles -->
+  <g fill="#00f2fe" opacity="0.6">
+    <circle cx="250" cy="240" r="3"/>
+    <circle cx="420" cy="720" r="3.5"/>
+    <circle cx="1180" cy="220" r="2.5"/>
+    <circle cx="1340" cy="650" r="4"/>
+    <circle cx="700" cy="150" r="3"/>
+    <circle cx="950" cy="750" r="2.5"/>
+  </g>
+</svg>
+
