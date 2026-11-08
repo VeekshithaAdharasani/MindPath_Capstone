@@ -1628,6 +1628,88 @@ app.post('/api/career/path', async (req, res) => {
   }
 });
 
+// Live AI Career Explore Endpoint (Zero Hardcoded Data)
+async function handleCareerExplore(req: express.Request, res: express.Response) {
+  const category = String(req.query.category || req.body?.category || 'All').trim();
+  const interest = String(req.query.interest || req.body?.interest || 'Computer Science & AI').trim();
+  const cacheKey = `career_explore_${category.toLowerCase()}_${interest.toLowerCase()}`;
+
+  // Check Turso DB cache first
+  try {
+    const cached = await client.execute({
+      sql: 'SELECT results_json, cached_at, ttl_ms FROM search_cache WHERE query = ?',
+      args: [cacheKey],
+    });
+    if (cached.rows.length > 0) {
+      const row = cached.rows[0];
+      const age = Date.now() - (row.cached_at as number);
+      if (age < (row.ttl_ms as number)) {
+        const parsed = JSON.parse(row.results_json as string);
+        return res.json({ success: true, careers: parsed, source: 'cache' });
+      }
+    }
+  } catch (_e) {
+    // Proceed to live AI generation
+  }
+
+  try {
+    const prompt = `You are a real-time career guidance agent. Generate 6 modern, verified career tracks for the category: "${category}" and student target interest: "${interest}".
+Return ONLY valid JSON matching:
+{
+  "careers": [
+    {
+      "id": "slug-string",
+      "title": "Official Industry Job Title",
+      "matchScore": number (85-99),
+      "salary": "₹12L - ₹40L",
+      "scope": "Growth Trajectory Description",
+      "category": "${category === 'All' ? 'Tech' : category}",
+      "description": "1-2 sentence real-world role overview.",
+      "requiredSkills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4"]
+    }
+  ]
+}`;
+
+    const aiRes = await enzonicChat({
+      messages: [
+        { role: 'system', content: 'You are an intelligent educational advisor. Output ONLY valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.3,
+    });
+
+    const dataObj: any = aiRes.data;
+    const content = dataObj?.choices?.[0]?.message?.content || '{}';
+    const parsed = JSON.parse(content);
+    const careers = Array.isArray(parsed.careers) ? parsed.careers : [];
+
+    if (careers.length > 0) {
+      try {
+        await client.execute({
+          sql: `INSERT INTO search_cache (query, results_json, cached_at, ttl_ms)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(query) DO UPDATE SET
+                  results_json = excluded.results_json,
+                  cached_at = excluded.cached_at,
+                  ttl_ms = excluded.ttl_ms`,
+          args: [cacheKey, JSON.stringify(careers), Date.now(), 24 * 60 * 60 * 1000],
+        });
+      } catch (cErr) {
+        console.warn('Could not cache career explore results:', cErr);
+      }
+    }
+
+    return res.json({ success: true, careers, source: 'live_ai' });
+  } catch (err: any) {
+    console.error('Error generating live AI careers:', err);
+    return res.status(500).json({ error: err.message || 'AI career explore generation failed' });
+  }
+}
+
+app.get('/api/career/explore', handleCareerExplore);
+app.post('/api/career/explore', handleCareerExplore);
+
 // AI Quiz Generation
 app.post('/api/quiz/generate', async (req, res) => {
   const { topic, level, numQuestions } = req.body || {};

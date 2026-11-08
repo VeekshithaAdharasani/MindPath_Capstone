@@ -1,6 +1,5 @@
 export async function searchMitOcw(query: string, limit = 10): Promise<any[]> {
   try {
-    // MIT OCW search page scraping - public HTML endpoint
     const res = await fetch(
       `https://ocw.mit.edu/search/?q=${encodeURIComponent(query)}`,
       { signal: AbortSignal.timeout(10000) }
@@ -8,27 +7,30 @@ export async function searchMitOcw(query: string, limit = 10): Promise<any[]> {
     if (!res.ok) return [];
     const html = await res.text();
 
-    // Basic HTML parsing for course titles and links
+    // Better regex for MIT OCW results
     const courses: any[] = [];
-    const courseRegex = /<a[^>]*href="([^"]*\/courses\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
-    let match = courseRegex.exec(html);
-    let count = 0;
+    const patterns = [
+      /<a[^>]*href="([^"]*\/courses\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g,
+      /<h3[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h3>/g,
+    ];
 
-    while (match !== null && count < limit) {
-      const url = match[1].startsWith('http') ? match[1] : `https://ocw.mit.edu${match[1]}`;
-      const title = match[2].replace(/<[^>]*>/g, '').trim();
-      if (title && url) {
-        courses.push({
-          id: `mit-${url.split('/').pop()}`,
-          title: title || 'MIT OCW Course',
-          description: 'MIT OpenCourseWare - Free course materials',
-          url,
-          source: 'mit-ocw' as const,
-          type: 'course',
-        });
-        count++;
+    for (const regex of patterns) {
+      let match = regex.exec(html);
+      while (match && courses.length < limit) {
+        const url = match[1].startsWith('http') ? match[1] : `https://ocw.mit.edu${match[1]}`;
+        const title = match[2].replace(/<[^>]*>/g, '').trim();
+        if (title && url && !courses.find(c => c.url === url)) {
+          courses.push({
+            id: `mit-${url.split('/').filter(Boolean).pop()}`,
+            title: title || 'MIT OCW Course',
+            description: 'MIT OpenCourseWare - Free course materials',
+            url,
+            source: 'mit-ocw' as const,
+            type: 'course' as const,
+          });
+        }
+        match = regex.exec(html);
       }
-      match = courseRegex.exec(html);
     }
     return courses;
   } catch {

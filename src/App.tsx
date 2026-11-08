@@ -436,6 +436,7 @@ export default function App() {
 
             {activeTab === 'career' && (
               <CareerView
+                user={user}
                 onOpenWhatIf={() => setIsWhatIfOpen(true)}
                 onOpenCompanion={handleOpenCompanion}
                 onNavigate={setActiveTab}

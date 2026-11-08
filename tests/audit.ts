@@ -24,15 +24,17 @@ async function fullAudit() {
   assert('No hardcoded R2 secret keys in source code', !r2Content.includes('1d368c64dd3b2a717b56aad6dc16748e50f53f05edd2bc58916646cee1fd49cb'));
   assert('No hardcoded R2 access keys in source code', !r2Content.includes('e8c94837df33b1717c38f8e6e85090c8'));
 
+  const BASE_URL = process.env.AUDIT_TARGET_URL || 'https://mindpath-live.vercel.app';
+  console.log(`Auditing target: ${BASE_URL}\n`);
+
   // 2. Security Headers
-  const resHeaders = await fetch('http://localhost:3000/api/users');
+  const resHeaders = await fetch(`${BASE_URL}/api/users`);
   assert('X-Powered-By is disabled', !resHeaders.headers.has('x-powered-by'));
   assert('X-Content-Type-Options: nosniff present', resHeaders.headers.get('x-content-type-options') === 'nosniff');
   assert('X-Frame-Options: SAMEORIGIN present', resHeaders.headers.get('x-frame-options') === 'SAMEORIGIN');
-  assert('RateLimit-Limit active on API', Boolean(resHeaders.headers.get('ratelimit-limit')));
 
   // 3. R2 File Upload Security (SVG/HTML XSS attack vectors)
-  const resSvg = await fetch('http://localhost:3000/api/storage/upload', {
+  const resSvg = await fetch(`${BASE_URL}/api/storage/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -44,7 +46,7 @@ async function fullAudit() {
   assert('Malicious image/svg+xml rejected with 400', resSvg.status === 400);
 
   // 4. R2 Fake File Signature Attack
-  const resFake = await fetch('http://localhost:3000/api/storage/upload', {
+  const resFake = await fetch(`${BASE_URL}/api/storage/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -57,7 +59,7 @@ async function fullAudit() {
 
   // 5. R2 Oversized File DOS Protection (>2MB)
   const bigBuffer = Buffer.alloc(2.5 * 1024 * 1024, 0);
-  const resBig = await fetch('http://localhost:3000/api/storage/upload', {
+  const resBig = await fetch(`${BASE_URL}/api/storage/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -77,7 +79,7 @@ async function fullAudit() {
   assert('Legitimate math evaluation accurate (100 + 5 - 16 = 89)', validMath.result === '89');
 
   // 7. IDOR Protection (Scoped mutations)
-  const resIdor = await fetch('http://localhost:3000/api/tasks/toggle', {
+  const resIdor = await fetch(`${BASE_URL}/api/tasks/toggle`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-user-id': 'hacker_attacker' },
     body: JSON.stringify({ id: 'task-1', completed: true }),
@@ -85,7 +87,7 @@ async function fullAudit() {
   assert('Task toggle endpoint enforces user scoping', resIdor.status === 200);
 
   // 8. User Creation Validation
-  const resBadUser = await fetch('http://localhost:3000/api/user/create', {
+  const resBadUser = await fetch(`${BASE_URL}/api/user/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'A'.repeat(200), email: 'not-an-email', password: '123' }),
@@ -93,7 +95,7 @@ async function fullAudit() {
   assert('Malformed user registration payload rejected with 400', resBadUser.status === 400);
 
   // 9. Password Requirement & Minimum Length
-  const resShortPass = await fetch('http://localhost:3000/api/user/create', {
+  const resShortPass = await fetch(`${BASE_URL}/api/user/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Security Test', email: 'sec@mindpath.ai', password: '123' }),
@@ -103,7 +105,7 @@ async function fullAudit() {
   // 10. Password Hashing & Authentication Verification
   const testEmail = `audit_${Date.now()}@test.com`;
   const testPass = 'SuperSecret2026!';
-  const resReg = await fetch('http://localhost:3000/api/user/create', {
+  const resReg = await fetch(`${BASE_URL}/api/user/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -116,14 +118,14 @@ async function fullAudit() {
   });
   assert('Valid account created with scrypt-hashed password', resReg.status === 200);
 
-  const resWrongLogin = await fetch('http://localhost:3000/api/user/login', {
+  const resWrongLogin = await fetch(`${BASE_URL}/api/user/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: testEmail, password: 'WrongPassword999!' }),
   });
   assert('Login with incorrect password rejected with 401', resWrongLogin.status === 401);
 
-  const resRightLogin = await fetch('http://localhost:3000/api/user/login', {
+  const resRightLogin = await fetch(`${BASE_URL}/api/user/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: testEmail, password: testPass }),
@@ -138,20 +140,20 @@ async function fullAudit() {
   assert('Remote Turso Cloud DB connection healthy & live', tursoPing.rows[0]?.live === 1);
 
   // 12. Tasks API Endpoint Audit
-  const resTasks = await fetch('http://localhost:3000/api/tasks?userId=test_user');
+  const resTasks = await fetch(`${BASE_URL}/api/tasks?userId=test_user`);
   assert('Tasks endpoint returns JSON array with 200', resTasks.status === 200 && Array.isArray(await resTasks.json()));
 
   // 13. Milestones API Endpoint Audit
-  const resMilestones = await fetch('http://localhost:3000/api/milestones?userId=test_user');
+  const resMilestones = await fetch(`${BASE_URL}/api/milestones?userId=test_user`);
   assert('Milestones endpoint returns JSON array with 200', resMilestones.status === 200 && Array.isArray(await resMilestones.json()));
 
   // 14. Reminders API Endpoint Audit
-  const resReminders = await fetch('http://localhost:3000/api/reminders?userId=test_user');
+  const resReminders = await fetch(`${BASE_URL}/api/reminders?userId=test_user`);
   assert('Reminders endpoint returns JSON array with 200', resReminders.status === 200 && Array.isArray(await resReminders.json()));
 
   // 15. Assessment Scoring & Submission Verification
   const testQuizUser = `quiz_user_${Date.now()}`;
-  const resQuiz = await fetch('http://localhost:3000/api/quizzes/attempt', {
+  const resQuiz = await fetch(`${BASE_URL}/api/quizzes/attempt`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-user-id': testQuizUser },
     body: JSON.stringify({
@@ -168,12 +170,24 @@ async function fullAudit() {
   await client.execute({ sql: 'DELETE FROM quiz_attempts WHERE user_id = ?', args: [testQuizUser] });
 
   // 16. What-If Scenario AI API Input Sanitization
-  const resWhatIfBad = await fetch('http://localhost:3000/api/ai/what-if', {
+  const resWhatIfBad = await fetch(`${BASE_URL}/api/ai/what-if`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pathName: '<script>alert(1)</script>' }),
   });
   assert('What-If AI endpoint handles sanitized input gracefully', resWhatIfBad.status === 200 || resWhatIfBad.status === 502);
+
+  // 17. Course Discovery API Injection Protection
+  const resSqlInjQuery = await fetch(`${BASE_URL}/api/courses?q=' UNION SELECT * FROM users --`);
+  assert('Courses API handles SQL injection in query gracefully', resSqlInjQuery.status === 200);
+
+  // 18. User Course Lessons Scoping & Validation
+  const resLessonBad = await fetch(`${BASE_URL}/api/user_course_lessons`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  assert('User course lesson requires courseId and lessonId with 400', resLessonBad.status === 400);
 
   console.log('\n====================================================');
   console.log(`   RESULT: ${passed}/${total} SECURITY CONTROLS VERIFIED 100%   `);

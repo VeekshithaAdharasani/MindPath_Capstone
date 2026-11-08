@@ -1,45 +1,7 @@
-import { ArrowRight, Trophy } from 'lucide-react';
+import { ArrowRight, RefreshCw, Trophy } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { generateQuiz } from '../lib/services/enzonic-ai';
 import { QuizTest, UserProfile } from '../types/index.ts';
-
-// Default fallback quizzes if AI generation fails
-const defaultQuizzes: QuizTest[] = [
-  {
-    id: 'math',
-    title: 'Mathematics & Calculus Mastery',
-    category: 'Subject Tests',
-    questionsCount: 10,
-    durationMinutes: 15,
-    iconBg: 'bg-blue-500/20 text-blue-400',
-    image: '/assets/extracted/quiz_math.svg',
-    questions: [
-      {
-        question: 'What is the derivative of f(x) = 3x^2 + 5x - 7 with respect to x?',
-        options: ['6x + 5', '3x + 5', '6x^2 + 5', '6x - 7'],
-        correctIndex: 0,
-        explanation: 'Using the power rule: d/dx(3x^2) = 6x, and d/dx(5x) = 5.',
-      },
-    ],
-  },
-  {
-    id: 'science',
-    title: 'Advanced Science & Physics',
-    category: 'Subject Tests',
-    questionsCount: 10,
-    durationMinutes: 18,
-    iconBg: 'bg-emerald-500/20 text-emerald-400',
-    image: '/assets/extracted/quiz_science.svg',
-    questions: [
-      {
-        question: 'What is the primary currency of cellular chemical energy in humans?',
-        options: ['DNA', 'ATP (Adenosine Triphosphate)', 'Glucose', 'Ribosome'],
-        correctIndex: 1,
-        explanation: 'ATP captures chemical energy obtained from the breakdown of food molecules.',
-      },
-    ],
-  },
-];
 
 interface QuizViewProps {
   user?: UserProfile;
@@ -58,42 +20,47 @@ export const QuizView: React.FC<QuizViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<string>('My Track');
   const [quizzes, setQuizzes] = useState<QuizTest[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load quizzes from user interest or generate new ones
+  // Load quizzes from user interest or generate new ones dynamically via AI
   const loadQuizzes = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const interest = user?.careerInterest || 'general technology';
-      
-      // Generate quizzes based on user interest using NVIDIA AI via Enzonic
+      const interest = user?.careerInterest || 'Artificial Intelligence, Mathematics, Data Structures';
       const topics = interest.split(',').map(t => t.trim()).filter(Boolean);
-      const quizPromises = topics.slice(0, 3).map(async (topic) => {
+      const targetTopics = topics.length > 0 ? topics.slice(0, 3) : ['Artificial Intelligence', 'Mathematics', 'Computer Science'];
+
+      const quizPromises = targetTopics.map(async (topic, tIdx) => {
         const quiz = await generateQuiz(topic, 'intermediate', 5);
+        const iconBgs = [
+          'bg-purple-500/20 text-purple-400',
+          'bg-cyan-500/20 text-cyan-400',
+          'bg-indigo-500/20 text-indigo-400',
+        ];
         return {
-          id: `ai-${topic.toLowerCase().replace(/\s+/g, '-')}`,
-          title: quiz.title,
+          id: `ai-${topic.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${tIdx}`,
+          title: quiz.title || `${topic} Diagnostic Quiz`,
           category: 'Subject Tests' as const,
-          questionsCount: quiz.questions.length,
-          durationMinutes: Math.max(quiz.questions.length * 2, 10),
-          iconBg: 'bg-purple-500/20 text-purple-400',
+          questionsCount: Array.isArray(quiz.questions) ? quiz.questions.length : 5,
+          durationMinutes: Math.max((quiz.questions?.length || 5) * 2, 10),
+          iconBg: iconBgs[tIdx % iconBgs.length],
           image: '/assets/extracted/quiz_default.svg',
-          questions: quiz.questions.map((q) => ({
+          questions: Array.isArray(quiz.questions) ? quiz.questions.map((q) => ({
             question: q.question,
             options: q.options,
             correctIndex: q.correctIndex,
             explanation: q.explanation,
-          })),
+          })) : [],
         } as QuizTest;
       });
 
       const generatedQuizzes = await Promise.all(quizPromises);
-      setQuizzes(generatedQuizzes.length > 0 ? generatedQuizzes : defaultQuizzes);
+      setQuizzes(generatedQuizzes.filter(q => q.questions.length > 0));
     } catch (err: any) {
-      setError(err.message || 'Failed to load quizzes');
-      setQuizzes(defaultQuizzes);
+      setError(err?.message || 'Failed to generate live quizzes from AI');
+      setQuizzes([]);
     } finally {
       setLoading(false);
     }
@@ -219,55 +186,86 @@ export const QuizView: React.FC<QuizViewProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredQuizzes.map((q) => (
-                <div
-                  key={q.id}
-                  className="rounded-3xl bg-[#14172f] border border-white/10 overflow-hidden flex flex-col justify-between hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 transition-all group select-none"
-                >
-                  <div>
-                    {q.image && (
-                      <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#0d1024]">
-                        <img
-                          src={q.image}
-                          alt={q.title}
-                          draggable={false}
-                          onDragStart={(e) => e.preventDefault()}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none select-none"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#14172f] via-transparent to-transparent pointer-events-none" />
-                        <div className="absolute top-3 left-3">
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 backdrop-blur-md">
-                            {q.category}
-                          </span>
+              {loading ? (
+                [1, 2, 3].map((n) => (
+                  <div key={n} className="rounded-3xl bg-[#14172f] border border-white/10 p-5 space-y-4 animate-pulse">
+                    <div className="w-full aspect-[16/9] rounded-2xl bg-white/5" />
+                    <div className="w-3/4 h-4 rounded bg-white/10" />
+                    <div className="w-1/2 h-3 rounded bg-white/5" />
+                  </div>
+                ))
+              ) : error ? (
+                <div className="col-span-full p-8 rounded-3xl bg-[#14172f] border border-white/10 text-center space-y-3">
+                  <p className="text-xs text-rose-400">{error}</p>
+                  <button
+                    onClick={loadQuizzes}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-bold text-white cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Regenerate Live Quizzes</span>
+                  </button>
+                </div>
+              ) : filteredQuizzes.length > 0 ? (
+                filteredQuizzes.map((q) => (
+                  <div
+                    key={q.id}
+                    className="rounded-3xl bg-[#14172f] border border-white/10 overflow-hidden flex flex-col justify-between hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 transition-all group select-none"
+                  >
+                    <div>
+                      {q.image && (
+                        <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#0d1024]">
+                          <img
+                            src={q.image}
+                            alt={q.title}
+                            draggable={false}
+                            onDragStart={(e) => e.preventDefault()}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none select-none"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#14172f] via-transparent to-transparent pointer-events-none" />
+                          <div className="absolute top-3 left-3">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 backdrop-blur-md">
+                              {q.category}
+                            </span>
+                          </div>
+                          <div className="absolute bottom-2.5 right-3 text-[10px] font-semibold text-slate-300 bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                            {q.durationMinutes} min
+                          </div>
                         </div>
-                        <div className="absolute bottom-2.5 right-3 text-[10px] font-semibold text-slate-300 bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                          {q.durationMinutes} min
-                        </div>
+                      )}
+                      <div className="p-5">
+                        <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors leading-snug">
+                          {q.title}
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {q.questionsCount} Live AI Formulated Questions • Timed Diagnostic
+                        </p>
                       </div>
-                    )}
-                    <div className="p-5">
-                      <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors leading-snug">
-                        {q.title}
-                      </h3>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {q.questionsCount} Standard Verified Questions • Timed Mock
-                      </p>
+                    </div>
+                    <div className="px-5 pb-5 pt-2 border-t border-white/5 flex items-center justify-between">
+                      <span className="text-xs text-slate-400 font-medium">
+                        Timed Challenge
+                      </span>
+                      <button
+                        onClick={() => onStartQuiz(q)}
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-xs font-bold text-white transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                      >
+                        <span>Start Test</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
-                  <div className="px-5 pb-5 pt-2 border-t border-white/5 flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-medium">
-                      Timed Challenge
-                    </span>
-                    <button
-                      onClick={() => onStartQuiz(q)}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-xs font-bold text-white transition-all shadow-md cursor-pointer flex items-center gap-1.5"
-                    >
-                      <span>Start Test</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
+                ))
+              ) : (
+                <div className="col-span-full p-8 text-center text-xs text-slate-400">
+                  <p>No tests found for this track.</p>
+                  <button
+                    onClick={loadQuizzes}
+                    className="mt-2 text-indigo-400 hover:underline cursor-pointer"
+                  >
+                    Generate AI Diagnostic Tests
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 

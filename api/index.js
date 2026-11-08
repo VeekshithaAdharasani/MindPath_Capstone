@@ -1012,13 +1012,17 @@ async function searchArxivPapers(query, maxResults = 10) {
 // src/lib/services/crossref.ts
 async function searchCrossrefWorks(query, rows = 10) {
   try {
+    const searchQuery = `${query} programming computer science`;
     const res = await fetch(
-      `https://api.crossref.org/works?query=${encodeURIComponent(query)}&rows=${rows}&select=title,author,URL,published`,
+      `https://api.crossref.org/works?query=${encodeURIComponent(searchQuery)}&rows=${rows}&select=title,author,URL,published`,
       { signal: AbortSignal.timeout(1e4) }
     );
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.message?.items || []).map((item) => ({
+    return (data.message?.items || []).filter((item) => {
+      const title = item.title?.[0]?.toLowerCase() || "";
+      return !title.includes("rock python") && !title.includes("python sebae") && !title.includes("animal") && !title.includes("species");
+    }).map((item) => ({
       id: `cr-${item.URL}`,
       title: item.title?.[0] || "Untitled",
       description: item.author?.[0]?.family ? `By ${item.author.family}` : "",
@@ -1056,13 +1060,14 @@ async function searchGitHubCourses(query, perPage = 10) {
 // src/lib/services/internet-archive.ts
 async function searchArchiveVideos(query, rows = 10) {
   try {
+    const searchQuery = `${query} programming tutorial course`;
     const res = await fetch(
-      `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=title,identifier,description&rows=${rows}&output=json`,
+      `https://archive.org/advancedsearch.php?q=${encodeURIComponent(searchQuery)}&fl[]=title,identifier,description,mediatype&rows=${rows}&output=json`,
       { signal: AbortSignal.timeout(1e4) }
     );
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.response?.docs || []).map((doc) => ({
+    return (data.response?.docs || []).filter((doc) => doc.mediatype === "movies" || doc.mediatype === "etree").map((doc) => ({
       id: doc.identifier,
       title: doc.title || "Untitled",
       channel: "Internet Archive",
@@ -1085,24 +1090,27 @@ async function searchMitOcw(query, limit = 10) {
     if (!res.ok) return [];
     const html = await res.text();
     const courses = [];
-    const courseRegex = /<a[^>]*href="([^"]*\/courses\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
-    let match = courseRegex.exec(html);
-    let count = 0;
-    while (match !== null && count < limit) {
-      const url = match[1].startsWith("http") ? match[1] : `https://ocw.mit.edu${match[1]}`;
-      const title = match[2].replace(/<[^>]*>/g, "").trim();
-      if (title && url) {
-        courses.push({
-          id: `mit-${url.split("/").pop()}`,
-          title: title || "MIT OCW Course",
-          description: "MIT OpenCourseWare - Free course materials",
-          url,
-          source: "mit-ocw",
-          type: "course"
-        });
-        count++;
+    const patterns = [
+      /<a[^>]*href="([^"]*\/courses\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g,
+      /<h3[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h3>/g
+    ];
+    for (const regex of patterns) {
+      let match = regex.exec(html);
+      while (match && courses.length < limit) {
+        const url = match[1].startsWith("http") ? match[1] : `https://ocw.mit.edu${match[1]}`;
+        const title = match[2].replace(/<[^>]*>/g, "").trim();
+        if (title && url && !courses.find((c) => c.url === url)) {
+          courses.push({
+            id: `mit-${url.split("/").filter(Boolean).pop()}`,
+            title: title || "MIT OCW Course",
+            description: "MIT OpenCourseWare - Free course materials",
+            url,
+            source: "mit-ocw",
+            type: "course"
+          });
+        }
+        match = regex.exec(html);
       }
-      match = courseRegex.exec(html);
     }
     return courses;
   } catch {
@@ -1114,13 +1122,13 @@ async function searchMitOcw(query, limit = 10) {
 async function searchOpenEdx(query, limit = 10) {
   try {
     const res = await fetch(
-      `https://courses.edx.org/api/courses/v1/courses/?search=${encodeURIComponent(query)}&page_size=${limit}`,
-      { signal: AbortSignal.timeout(1e4) }
+      `https://courses.edx.org/api/courses/v1/courses/?search_term=${encodeURIComponent(query)}&page_size=${limit}`,
+      { signal: AbortSignal.timeout(15e3) }
     );
     if (!res.ok) return [];
     const data = await res.json();
     return (data.results || []).map((course) => ({
-      id: `edx-${course.id || course.course_id}`,
+      id: `edx-${course.id || course.course_id || Date.now()}`,
       title: course.title || "Untitled Course",
       description: course.short_description || course.description || "",
       url: `https://courses.edx.org/courses/${course.id || course.course_id}`,
@@ -1145,12 +1153,12 @@ async function searchOpenStax(query, limit = 10) {
     const bookRegex = /<a[^>]*href="([^"]*\/books\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
     let match = bookRegex.exec(html);
     let count = 0;
-    while (match !== null && count < limit) {
+    while (match && count < limit) {
       const url = match[1].startsWith("http") ? match[1] : `https://openstax.org${match[1]}`;
       const title = match[2].replace(/<[^>]*>/g, "").trim();
       if (title && url) {
         books.push({
-          id: `openstax-${url.split("/").pop()}`,
+          id: `openstax-${url.split("/").filter(Boolean).pop()}`,
           title: title || "OpenStax Textbook",
           description: "OpenStax - Free peer-reviewed textbook",
           url,
@@ -1191,8 +1199,9 @@ async function searchOpenAlexWorks(query, perPage = 10) {
 // src/lib/services/wikimedia.ts
 async function searchWikipedia(query, limit = 5) {
   try {
+    const searchTerm = query.toLowerCase().includes("programming") ? query : `${query} programming`;
     const res = await fetch(
-      `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=${limit}`,
+      `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&format=json&srlimit=${limit}`,
       { signal: AbortSignal.timeout(1e4) }
     );
     if (!res.ok) return [];
@@ -2951,6 +2960,77 @@ app.post("/api/career/path", async (req, res) => {
     return res.status(500).json({ error: err.message || "Career path generation failed" });
   }
 });
+async function handleCareerExplore(req, res) {
+  const category = String(req.query.category || req.body?.category || "All").trim();
+  const interest = String(req.query.interest || req.body?.interest || "Computer Science & AI").trim();
+  const cacheKey = `career_explore_${category.toLowerCase()}_${interest.toLowerCase()}`;
+  try {
+    const cached = await client.execute({
+      sql: "SELECT results_json, cached_at, ttl_ms FROM search_cache WHERE query = ?",
+      args: [cacheKey]
+    });
+    if (cached.rows.length > 0) {
+      const row = cached.rows[0];
+      const age = Date.now() - row.cached_at;
+      if (age < row.ttl_ms) {
+        const parsed = JSON.parse(row.results_json);
+        return res.json({ success: true, careers: parsed, source: "cache" });
+      }
+    }
+  } catch (_e) {
+  }
+  try {
+    const prompt = `You are a real-time career guidance agent. Generate 6 modern, verified career tracks for the category: "${category}" and student target interest: "${interest}".
+Return ONLY valid JSON matching:
+{
+  "careers": [
+    {
+      "id": "slug-string",
+      "title": "Official Industry Job Title",
+      "matchScore": number (85-99),
+      "salary": "\u20B912L - \u20B940L",
+      "scope": "Growth Trajectory Description",
+      "category": "${category === "All" ? "Tech" : category}",
+      "description": "1-2 sentence real-world role overview.",
+      "requiredSkills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4"]
+    }
+  ]
+}`;
+    const aiRes = await enzonicChat({
+      messages: [
+        { role: "system", content: "You are an intelligent educational advisor. Output ONLY valid JSON." },
+        { role: "user", content: prompt }
+      ],
+      responseFormat: { type: "json_object" },
+      temperature: 0.3
+    });
+    const dataObj = aiRes.data;
+    const content = dataObj?.choices?.[0]?.message?.content || "{}";
+    const parsed = JSON.parse(content);
+    const careers = Array.isArray(parsed.careers) ? parsed.careers : [];
+    if (careers.length > 0) {
+      try {
+        await client.execute({
+          sql: `INSERT INTO search_cache (query, results_json, cached_at, ttl_ms)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(query) DO UPDATE SET
+                  results_json = excluded.results_json,
+                  cached_at = excluded.cached_at,
+                  ttl_ms = excluded.ttl_ms`,
+          args: [cacheKey, JSON.stringify(careers), Date.now(), 24 * 60 * 60 * 1e3]
+        });
+      } catch (cErr) {
+        console.warn("Could not cache career explore results:", cErr);
+      }
+    }
+    return res.json({ success: true, careers, source: "live_ai" });
+  } catch (err) {
+    console.error("Error generating live AI careers:", err);
+    return res.status(500).json({ error: err.message || "AI career explore generation failed" });
+  }
+}
+app.get("/api/career/explore", handleCareerExplore);
+app.post("/api/career/explore", handleCareerExplore);
 app.post("/api/quiz/generate", async (req, res) => {
   const { topic, level, numQuestions } = req.body || {};
   if (!topic) return res.status(400).json({ error: "Topic required" });

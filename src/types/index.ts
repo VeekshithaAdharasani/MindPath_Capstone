@@ -55,7 +55,7 @@ export interface CareerMatch {
   matchScore: number;
   salary: string;
   scope: string;
-  image: string;
+  image?: string;
   category: 'Tech' | 'Science' | 'Medicine' | 'Business' | 'Arts';
   description: string;
   requiredSkills: string[];
