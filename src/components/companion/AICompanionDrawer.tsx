@@ -1,5 +1,4 @@
 import {
-  Bot,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -715,7 +714,7 @@ CRITICAL INSTRUCTIONS:
                   className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                     m.role === 'user'
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-purple-600/30 text-purple-300 border border-purple-500/40'
+                      : 'bg-purple-950/60 text-purple-300 border border-purple-500/40 shadow-sm shadow-purple-500/20'
                   }`}
                 >
                   {m.role === 'user' ? (
@@ -725,7 +724,7 @@ CRITICAL INSTRUCTIONS:
                       <User className="w-3.5 h-3.5" />
                     )
                   ) : (
-                    <Bot className="w-3.5 h-3.5" />
+                    <AILogo size="xs" pulse={false} className="w-4 h-4" />
                   )}
                 </div>
 
@@ -794,8 +793,8 @@ CRITICAL INSTRUCTIONS:
           {/* Streaming message chunk with live markdown parsing */}
           {streamingDelta && (
             <div className="flex items-start gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-purple-600/30 text-purple-300 border border-purple-500/40 flex items-center justify-center shrink-0">
-                <Bot className="w-3.5 h-3.5 animate-pulse" />
+              <div className="w-7 h-7 rounded-lg bg-purple-950/60 text-purple-300 border border-purple-500/40 shadow-sm shadow-purple-500/20 flex items-center justify-center shrink-0">
+                <AILogo size="xs" pulse={true} className="w-4 h-4 animate-pulse" />
               </div>
               <div className="max-w-[88%] rounded-2xl rounded-tl-none px-3.5 py-2.5 text-xs bg-[#181d3d] text-slate-200 border border-white/5 shadow-sm">
                 <MarkdownMessage content={streamingDelta} isStreaming={true} />
