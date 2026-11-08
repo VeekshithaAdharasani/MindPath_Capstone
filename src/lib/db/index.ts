@@ -21,6 +21,15 @@ let dbInitPromise: Promise<void> | null = null;
 let isDbInitialized = false;
 
 async function runMigrations(): Promise<void> {
+  // Fast path for serverless lambdas: single check to verify tables & columns exist
+  try {
+    await client.execute('SELECT u.id, qa.quiz_id FROM users u LEFT JOIN quiz_attempts qa ON 1=0 LIMIT 1');
+    isDbInitialized = true;
+    return;
+  } catch {
+    // Schema or column missing; proceed to run full migration below
+  }
+
   let attempts = 0;
   const maxAttempts = 3;
 

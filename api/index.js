@@ -337,6 +337,12 @@ var db = drizzle(client, { schema: schema_exports });
 var dbInitPromise = null;
 var isDbInitialized = false;
 async function runMigrations() {
+  try {
+    await client.execute("SELECT u.id, qa.quiz_id FROM users u LEFT JOIN quiz_attempts qa ON 1=0 LIMIT 1");
+    isDbInitialized = true;
+    return;
+  } catch {
+  }
   let attempts = 0;
   const maxAttempts = 3;
   while (attempts < maxAttempts) {
