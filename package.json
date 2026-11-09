@@ -2,6 +2,7 @@
   "name": "mindpath",
   "private": true,
   "version": "1.0.0",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -10,7 +11,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit && biome check",
-    "check": "tsc --noEmit && biome check"
+    "check": "tsc --noEmit && biome check",
+    "test": "bun test"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1164.0",

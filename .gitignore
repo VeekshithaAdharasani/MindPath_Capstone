@@ -60,6 +60,10 @@ tmp/
 temp/
 *.tmp
 *.scratch
+*.bak
+*.orig
+*.rej
 .agents/
+.subagents/
 .vercel/
 .cache/
