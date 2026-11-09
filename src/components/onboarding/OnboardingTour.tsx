@@ -1,5 +1,6 @@
 import confetti from 'canvas-confetti';
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Camera,
@@ -9,12 +10,13 @@ import {
   GraduationCap,
   Loader2,
   MapPin,
+  RotateCcw,
   Sparkles,
   Upload,
   User,
   X,
 } from 'lucide-react';
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavTab, UserProfile } from '../../types/index.ts';
 import { AILogo } from '../brand/AILogo.tsx';
 
@@ -49,6 +51,115 @@ const POPULAR_LOCATIONS = [
   'Singapore',
 ];
 
+export interface OnboardingResponseResult {
+  success: boolean;
+  user?: UserProfile;
+  error?: string;
+  statusCode: number;
+}
+
+export async function parseOnboardingResponse(res: Response): Promise<OnboardingResponseResult> {
+  const statusCode = res.status;
+  const contentType = res.headers.get('content-type') || '';
+  let rawText = '';
+  let data: any = null;
+
+  try {
+    rawText = await res.text();
+    if (rawText && (contentType.includes('application/json') || rawText.trim().startsWith('{'))) {
+      data = JSON.parse(rawText);
+    }
+  } catch {
+    data = null;
+  }
+
+  // Handle Non-200 Status Codes
+  if (!res.ok) {
+    if (statusCode === 504 || statusCode === 502) {
+      return {
+        success: false,
+        statusCode,
+        error: data?.error || 'Onboarding generation timed out. Please retry to use customized career curriculum.',
+      };
+    }
+    if (statusCode === 401) {
+      return {
+        success: false,
+        statusCode,
+        error: data?.error || 'Session expired or unauthenticated. Please sign in again.',
+      };
+    }
+    if (statusCode === 400) {
+      return {
+        success: false,
+        statusCode,
+        error: data?.error || 'Invalid onboarding information provided. Please check your inputs and retry.',
+      };
+    }
+    if (statusCode >= 500) {
+      return {
+        success: false,
+        statusCode,
+        error: data?.error || 'Server error encountered during onboarding setup. Please retry.',
+      };
+    }
+    return {
+      success: false,
+      statusCode,
+      error: data?.error || `Onboarding request failed with status ${statusCode}. Please retry.`,
+    };
+  }
+
+  // Handle 200 OK
+  if (!data || typeof data !== 'object') {
+    return {
+      success: false,
+      statusCode,
+      error: 'Invalid response received from server. Please retry.',
+    };
+  }
+
+  if (!data.ok) {
+    return {
+      success: false,
+      statusCode,
+      error: data.error || 'Failed to initialize customized career roadmap.',
+    };
+  }
+
+  return {
+    success: true,
+    statusCode,
+    user: data.user,
+  };
+}
+
+export function sanitizeOnboardingError(err: any): string {
+  const msg = typeof err?.message === 'string' ? err.message : (typeof err === 'string' ? err : '');
+  const isSyntaxOrInternal =
+    msg.includes('JSON') ||
+    msg.includes('SyntaxError') ||
+    msg.includes('Unexpected token') ||
+    msg.includes('<!DOCTYPE') ||
+    msg.includes('failed to parse');
+
+  if (isSyntaxOrInternal) {
+    return 'Could not complete AI onboarding due to a server response issue. Please retry.';
+  }
+
+  const isNetworkError =
+    msg.includes('Failed to fetch') ||
+    msg.includes('NetworkError') ||
+    msg.includes('network') ||
+    msg.includes('ECONNREFUSED');
+
+  if (isNetworkError) {
+    return 'Could not complete AI onboarding due to a network connection issue. Please check your internet connection and retry.';
+  }
+
+  return msg || 'Could not complete AI onboarding. Please retry.';
+}
+
 export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   isOpen,
   onClose,
@@ -72,6 +183,28 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timer1Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timer2Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  const cleanupTimers = useCallback(() => {
+    if (timer1Ref.current) {
+      clearTimeout(timer1Ref.current);
+      timer1Ref.current = null;
+    }
+    if (timer2Ref.current) {
+      clearTimeout(timer2Ref.current);
+      timer2Ref.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      cleanupTimers();
+    };
+  }, [cleanupTimers]);
 
   if (!isOpen) return null;
 
@@ -177,24 +310,42 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   const handleCompleteOnboarding = async () => {
     setLoading(true);
     setError(null);
+    cleanupTimers();
     setGenerationPhase('Analyzing career requirements & 2026 industry demand...');
 
-    const timer1 = setTimeout(() => {
-      setGenerationPhase('Synthesizing 6-level personalized career curriculum...');
+    timer1Ref.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setGenerationPhase('Synthesizing 6-level personalized career curriculum...');
+      }
     }, 1200);
 
-    const timer2 = setTimeout(() => {
-      setGenerationPhase('Formulating initial diagnostic assessment & Turso DB tasks...');
+    timer2Ref.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setGenerationPhase('Formulating initial diagnostic assessment & Turso DB tasks...');
+      }
     }, 2400);
+
+    // Resilient user ID resolution: use prop or fallback to cached user in localStorage
+    let activeUserId = userId;
+    if (!activeUserId && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('mindpath_user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.id) activeUserId = String(parsed.id);
+        }
+      } catch {}
+    }
 
     try {
       const res = await fetch('/api/onboarding/complete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId || '',
+          'x-user-id': activeUserId || '',
         },
         body: JSON.stringify({
+          userId: activeUserId || '',
           educationLevel: educationLevel.trim(),
           careerInterest: careerInterest.trim(),
           targetExam: targetExam.trim(),
@@ -204,20 +355,21 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Failed to initialize customized career roadmap.');
+      const parseResult = await parseOnboardingResponse(res);
+      if (!parseResult.success) {
+        throw new Error(parseResult.error || 'Failed to initialize customized career roadmap.');
       }
 
       confetti({ particleCount: 140, spread: 85, origin: { y: 0.6 } });
 
-      if (userId) {
-        localStorage.setItem(`mindpath_onboarding_completed_${userId}`, 'true');
+      const resolvedId = activeUserId || userId;
+      if (resolvedId) {
+        localStorage.setItem(`mindpath_onboarding_completed_${resolvedId}`, 'true');
       }
       localStorage.setItem('mindpath_onboarding_completed', 'true');
 
-      if (onProfileUpdated && data.user) {
-        onProfileUpdated(data.user);
+      if (onProfileUpdated && parseResult.user) {
+        onProfileUpdated(parseResult.user);
       }
 
       if (typeof window !== 'undefined') {
@@ -228,11 +380,15 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
       onNavigate('home');
     } catch (err: any) {
       console.error('Onboarding setup error:', err);
-      setError(err?.message || 'Could not complete AI onboarding. Please retry.');
+      if (isMountedRef.current) {
+        setError(sanitizeOnboardingError(err));
+      }
     } finally {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      setLoading(false);
+      cleanupTimers();
+      if (isMountedRef.current) {
+        setGenerationPhase('');
+        setLoading(false);
+      }
     }
   };
 
@@ -280,8 +436,22 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs">
-            {error}
+          <div className="mb-4 p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5 shadow-lg animate-in fade-in duration-200">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div className="flex-1 leading-relaxed">
+              <p className="font-semibold">{error}</p>
+              <p className="text-[11px] text-rose-300/80 mt-0.5">
+                Your selections are saved. Click Retry to re-attempt generation.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="text-rose-400 hover:text-white p-0.5 rounded transition-colors cursor-pointer"
+              aria-label="Dismiss error"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 
@@ -696,7 +866,19 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
                 disabled={loading}
                 className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 text-xs font-black text-white shadow-xl shadow-purple-500/30 flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
               >
-                <span>{loading ? 'Activating AI...' : 'Generate My MindPath 🚀'}</span>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Activating AI...</span>
+                  </>
+                ) : error ? (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Retry Generation</span>
+                  </>
+                ) : (
+                  <span>Generate My MindPath 🚀</span>
+                )}
               </button>
             </div>
           </div>

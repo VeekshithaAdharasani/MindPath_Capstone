@@ -25,7 +25,14 @@ import {
 } from './src/lib/ai/tools.ts';
 import { client, initDatabase } from './src/lib/db/index.ts';
 import { searchAllSources } from './src/lib/pipeline/course-pipeline.ts';
-import { generateCareerPath, generateQuiz } from './src/lib/services/enzonic-ai.ts';
+import {
+  type CareerPathPlan,
+  type GeneratedQuiz,
+  generateCareerPath,
+  generateQuiz,
+  getCuratedCareerPath,
+  getCuratedQuiz,
+} from './src/lib/services/enzonic-ai.ts';
 import { uploadToR2 } from './src/lib/storage/r2.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -139,7 +146,8 @@ async function resolveUserId(req: express.Request): Promise<string> {
 // -------------------------------------------------------------
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  const cleanPassword = typeof password === 'string' ? password.trim() : '';
+  const hash = crypto.scryptSync(cleanPassword, salt, 64).toString('hex');
   return `${salt}:${hash}`;
 }
 
@@ -149,7 +157,14 @@ function verifyPassword(password: string, storedHash: string): boolean {
     const [salt, key] = storedHash.split(':');
     const keyBuffer = Buffer.from(key, 'hex');
     const derivedKey = crypto.scryptSync(password, salt, 64);
-    return crypto.timingSafeEqual(keyBuffer, derivedKey);
+    if (crypto.timingSafeEqual(keyBuffer, derivedKey)) {
+      return true;
+    }
+    if (typeof password === 'string' && password.trim() !== password) {
+      const trimmedDerived = crypto.scryptSync(password.trim(), salt, 64);
+      return crypto.timingSafeEqual(keyBuffer, trimmedDerived);
+    }
+    return false;
   } catch {
     return false;
   }
@@ -168,86 +183,107 @@ app.get('/api/users', async (_req, res) => {
   }
 });
 
-app.post('/api/user/create', async (req, res) => {
+const inFlightRegistrations = new Set<string>();
+
+const handleUserRegistration: express.RequestHandler = async (req, res) => {
   try {
-    const { name, email, password, educationLevel, careerInterest, avatarUrl } = req.body;
+    const { name, email, password, educationLevel, careerInterest, avatarUrl } = req.body || {};
     if (!name || typeof name !== 'string' || !name.trim() || name.length > 80) {
       return res.status(400).json({ error: 'Valid name (1-80 characters) is required' });
     }
-    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.length > 120) {
+    const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) || cleanEmail.length > 120) {
       return res.status(400).json({ error: 'Valid email address is required' });
     }
-    if (!password || typeof password !== 'string' || password.length < 6 || password.length > 128) {
+    const rawPassword = typeof password === 'string' ? password : '';
+    const cleanPassword = rawPassword.trim();
+    if (!rawPassword || cleanPassword.length < 6 || rawPassword.length > 128) {
       return res.status(400).json({ error: 'Password is required and must be between 6 and 128 characters' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-
-    // Check if account already exists
-    const existing = await client.execute({
-      sql: 'SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1',
-      args: [cleanEmail],
-    });
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'An account with this email already exists. Please sign in.' });
+    if (inFlightRegistrations.has(cleanEmail)) {
+      return res.status(409).json({ error: 'User with this email already exists' });
     }
+    inFlightRegistrations.add(cleanEmail);
 
-    const cleanAvatar = (avatarUrl && typeof avatarUrl === 'string' && (/^\/assets\//.test(avatarUrl) || /^https:\/\//.test(avatarUrl)))
-      ? avatarUrl.slice(0, 300)
-      : '/assets/extracted/default_avatar.svg';
+    try {
+      // Check if account already exists
+      const existing = await client.execute({
+        sql: 'SELECT id FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
+        args: [cleanEmail],
+      });
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ error: 'User with this email already exists' });
+      }
 
-    const passwordHash = hashPassword(password);
-    const id = `user_${Date.now()}`;
-    await client.execute({
-      sql: 'INSERT INTO users (id, name, email, password_hash, avatar_url, education_level, career_interest, streak_days, total_study_hours, onboarding_completed, location, target_exam, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?)',
-      args: [
-        id,
-        name.trim(),
-        cleanEmail,
-        passwordHash,
-        cleanAvatar,
-        String(educationLevel || 'Class 12').slice(0, 50),
-        String(careerInterest || 'Computer Science').slice(0, 50),
-        String(req.body.location || '').slice(0, 100),
-        String(req.body.targetExam || '').slice(0, 100),
-        Date.now(),
-      ],
-    });
-    return res.json({
-      ok: true,
-      user: {
-        id,
-        name: name.trim(),
-        email: cleanEmail,
-        avatarUrl: cleanAvatar,
-        educationLevel: educationLevel || 'Class 12',
-        careerInterest: careerInterest || 'Computer Science',
-        streakDays: 1,
-        totalStudyHours: 0,
-        onboardingCompleted: 0,
-        location: req.body.location || '',
-        targetExam: req.body.targetExam || '',
-      },
-    });
+      const cleanAvatar = (avatarUrl && typeof avatarUrl === 'string' && (/^\/assets\//.test(avatarUrl) || /^https:\/\//.test(avatarUrl)))
+        ? avatarUrl.slice(0, 300)
+        : '/assets/extracted/default_avatar.svg';
+
+      const passwordHash = hashPassword(cleanPassword);
+      const id = `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      await client.execute({
+        sql: 'INSERT INTO users (id, name, email, password_hash, avatar_url, education_level, career_interest, streak_days, total_study_hours, onboarding_completed, location, target_exam, bio, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, 0, ?, ?, ?, ?)',
+        args: [
+          id,
+          name.trim(),
+          cleanEmail,
+          passwordHash,
+          cleanAvatar,
+          String(educationLevel || 'Class 12').slice(0, 50),
+          String(careerInterest || 'Computer Science').slice(0, 50),
+          String(req.body?.location || '').slice(0, 100),
+          String(req.body?.targetExam || '').slice(0, 100),
+          String(req.body?.bio || '').slice(0, 500),
+          Date.now(),
+        ],
+      });
+      return res.status(200).json({
+        ok: true,
+        user: {
+          id,
+          name: name.trim(),
+          email: cleanEmail,
+          avatarUrl: cleanAvatar,
+          educationLevel: String(educationLevel || 'Class 12').slice(0, 50),
+          careerInterest: String(careerInterest || 'Computer Science').slice(0, 50),
+          streakDays: 1,
+          totalStudyHours: 0,
+          onboardingCompleted: 0,
+          location: String(req.body?.location || '').slice(0, 100),
+          targetExam: String(req.body?.targetExam || '').slice(0, 100),
+          bio: String(req.body?.bio || '').slice(0, 500),
+        },
+      });
+    } finally {
+      inFlightRegistrations.delete(cleanEmail);
+    }
   } catch (err: any) {
+    if (err?.message?.includes('UNIQUE') || err?.message?.includes('constraint')) {
+      return res.status(409).json({ error: 'User with this email already exists' });
+    }
     console.error('Create user error:', err);
     return res.status(500).json({ error: 'Failed to create user account' });
   }
-});
+};
 
-app.post('/api/user/login', async (req, res) => {
+app.post('/api/user/create', handleUserRegistration);
+app.post('/api/user/register', handleUserRegistration);
+app.post('/api/register', handleUserRegistration);
+
+const handleUserLogin: express.RequestHandler = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    const { email, password } = req.body || {};
+    const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       return res.status(400).json({ error: 'Valid email address is required' });
     }
     if (!password || typeof password !== 'string') {
       return res.status(400).json({ error: 'Password is required to sign in' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
     const result = await client.execute({
-      sql: 'SELECT * FROM users WHERE LOWER(email) = ? LIMIT 1',
+      sql: 'SELECT * FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
       args: [cleanEmail],
     });
     if (result.rows.length === 0) {
@@ -263,7 +299,7 @@ app.post('/api/user/login', async (req, res) => {
       }
     }
 
-    return res.json({
+    return res.status(200).json({
       ok: true,
       user: {
         id: u.id,
@@ -272,7 +308,7 @@ app.post('/api/user/login', async (req, res) => {
         avatarUrl: u.avatar_url,
         educationLevel: u.education_level,
         careerInterest: u.career_interest,
-        streakDays: u.streak_days,
+        streakDays: Math.max(1, Number(u.streak_days) || 1),
         totalStudyHours: u.total_study_hours,
         onboardingCompleted: Number(u.onboarding_completed) || 0,
         location: u.location || '',
@@ -284,10 +320,13 @@ app.post('/api/user/login', async (req, res) => {
     console.error('Login error:', err);
     return res.status(500).json({ error: 'Failed to authenticate user' });
   }
-});
+};
+
+app.post('/api/user/login', handleUserLogin);
+app.post('/api/login', handleUserLogin);
 
 app.post('/api/onboarding/complete', async (req, res) => {
-  const userId = await resolveUserId(req);
+  const userId = getUserId(req);
   const { educationLevel, careerInterest, targetExam, location, bio, avatarUrl } = req.body || {};
 
   if (!userId) {
@@ -324,70 +363,116 @@ app.post('/api/onboarding/complete', async (req, res) => {
     });
     const updatedUser: any = userRes.rows[0];
 
-    // 3. Generate 6-level career roadmap in background & save
-    try {
-      const plan = await generateCareerPath(cleanCareer);
-      if (plan && Array.isArray(plan.milestones)) {
-        await client.execute({
-          sql: `INSERT INTO generated_career_paths (id, user_id, goal, path_json, created_at)
-                VALUES (?, ?, ?, ?, ?)`,
-          args: [
-            `path_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            userId,
-            cleanCareer,
-            JSON.stringify(plan),
-            Date.now(),
-          ],
-        });
+    // 3. Parallel external generation with timeout guard (guaranteeing sub-7.5s route completion)
+    const timeoutPromise = new Promise<'timeout'>((resolve) =>
+      setTimeout(() => resolve('timeout'), 5500)
+    );
 
-        // Seed initial milestones from plan
-        for (let i = 0; i < Math.min(plan.milestones.length, 3); i++) {
-          const m = plan.milestones[i];
-          await client.execute({
-            sql: `INSERT INTO milestones (id, user_id, title, time_text, status, icon_type, order_index)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            args: [
-              `ms_${Date.now()}_${i}`,
-              userId,
-              m.title,
-              `${m.estimatedWeeks || 2} weeks`,
-              i === 0 ? 'active' : 'upcoming',
-              i === 0 ? 'book' : 'project',
-              i,
-            ],
-          });
+    const parallelGenPromise = Promise.allSettled([
+      generateCareerPath(cleanCareer, 5200),
+      generateQuiz(cleanCareer, 'intermediate', 5, 5200),
+    ]);
+
+    const generationResult = await Promise.race([parallelGenPromise, timeoutPromise]);
+
+    let plan: CareerPathPlan;
+    let quiz: GeneratedQuiz;
+
+    if (generationResult === 'timeout') {
+      console.warn('Onboarding AI generation timed out at 5.5s threshold; using curated fallbacks');
+      plan = getCuratedCareerPath(cleanCareer);
+      quiz = getCuratedQuiz(cleanCareer, 'intermediate', 5);
+    } else {
+      const [careerRes, quizRes] = generationResult;
+      if (
+        careerRes.status === 'fulfilled' &&
+        careerRes.value &&
+        Array.isArray(careerRes.value.milestones) &&
+        careerRes.value.milestones.length >= 3
+      ) {
+        plan = careerRes.value;
+      } else {
+        if (careerRes.status === 'rejected') {
+          console.warn('Career path generation rejected:', careerRes.reason);
         }
+        plan = getCuratedCareerPath(cleanCareer);
       }
-    } catch (pErr) {
-      console.warn('Roadmap generation notice:', pErr);
+
+      if (
+        quizRes.status === 'fulfilled' &&
+        quizRes.value &&
+        Array.isArray(quizRes.value.questions) &&
+        quizRes.value.questions.length > 0
+      ) {
+        quiz = quizRes.value;
+      } else {
+        if (quizRes.status === 'rejected') {
+          console.warn('Quiz generation rejected:', quizRes.reason);
+        }
+        quiz = getCuratedQuiz(cleanCareer, 'intermediate', 5);
+      }
     }
 
-    // 4. Generate initial diagnostic quiz
-    try {
-      const quiz = await generateQuiz(cleanCareer, 'intermediate', 5);
-      if (quiz && Array.isArray(quiz.questions)) {
-        await client.execute({
-          sql: `INSERT INTO generated_quizzes (id, user_id, topic, level, title, questions_json, category, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    // 4. Concurrently persist Career Path, Milestones, Quiz, and Tasks to Turso DB
+    const dbOperations: Promise<any>[] = [];
+
+    // Save Career Path
+    dbOperations.push(
+      client.execute({
+        sql: `INSERT INTO generated_career_paths (id, user_id, goal, path_json, created_at)
+              VALUES (?, ?, ?, ?, ?)`,
+        args: [
+          `path_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          userId,
+          cleanCareer,
+          JSON.stringify(plan),
+          Date.now(),
+        ],
+      }).catch((pErr) => console.warn('Roadmap persistence notice:', pErr))
+    );
+
+    // Save Top 3 Milestones
+    const milestonesToSave = (plan.milestones || []).slice(0, 3);
+    for (let i = 0; i < milestonesToSave.length; i++) {
+      const m = milestonesToSave[i];
+      dbOperations.push(
+        client.execute({
+          sql: `INSERT INTO milestones (id, user_id, title, time_text, status, icon_type, order_index)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
           args: [
-            `quiz_${Date.now()}_diag`,
+            `ms_${Date.now()}_${i}`,
             userId,
-            cleanCareer,
-            'intermediate',
-            quiz.title || `${cleanCareer} Diagnostic Quiz`,
-            JSON.stringify(quiz.questions),
-            'Subject Tests',
-            Date.now(),
+            m.title || `Milestone ${i + 1}`,
+            `${m.estimatedWeeks || 2} weeks`,
+            i === 0 ? 'active' : 'upcoming',
+            i === 0 ? 'book' : 'project',
+            i,
           ],
-        });
-      }
-    } catch (qErr) {
-      console.warn('Initial quiz generation notice:', qErr);
+        }).catch((mErr) => console.warn(`Milestone ${i} persistence notice:`, mErr))
+      );
     }
 
-    // 5. Create initial study tasks
-    try {
-      await client.execute({
+    // Save Diagnostic Quiz
+    dbOperations.push(
+      client.execute({
+        sql: `INSERT INTO generated_quizzes (id, user_id, topic, level, title, questions_json, category, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          `quiz_${Date.now()}_diag`,
+          userId,
+          cleanCareer,
+          'intermediate',
+          quiz.title || `${cleanCareer} Diagnostic Quiz`,
+          JSON.stringify(quiz.questions),
+          'Subject Tests',
+          Date.now(),
+        ],
+      }).catch((qErr) => console.warn('Initial quiz persistence notice:', qErr))
+    );
+
+    // Save Initial Tasks
+    dbOperations.push(
+      client.execute({
         sql: `INSERT INTO tasks (id, user_id, title, time_text, category, completed, order_index, created_at)
               VALUES (?, ?, ?, ?, ?, 0, 0, ?)`,
         args: [
@@ -398,8 +483,11 @@ app.post('/api/onboarding/complete', async (req, res) => {
           'Tasks',
           Date.now(),
         ],
-      });
-      await client.execute({
+      }).catch((tErr) => console.warn('Initial task 1 notice:', tErr))
+    );
+
+    dbOperations.push(
+      client.execute({
         sql: `INSERT INTO tasks (id, user_id, title, time_text, category, completed, order_index, created_at)
               VALUES (?, ?, ?, ?, ?, 0, 1, ?)`,
         args: [
@@ -410,10 +498,10 @@ app.post('/api/onboarding/complete', async (req, res) => {
           'Tasks',
           Date.now(),
         ],
-      });
-    } catch (tErr) {
-      console.warn('Initial tasks notice:', tErr);
-    }
+      }).catch((tErr) => console.warn('Initial task 2 notice:', tErr))
+    );
+
+    await Promise.all(dbOperations);
 
     return res.json({
       ok: true,
@@ -457,7 +545,7 @@ app.get('/api/user', async (req, res) => {
         avatarUrl: u.avatar_url,
         educationLevel: u.education_level,
         careerInterest: u.career_interest,
-        streakDays: u.streak_days,
+        streakDays: Math.max(1, Number(u.streak_days) || 1),
         totalStudyHours: u.total_study_hours,
         onboardingCompleted: Number(u.onboarding_completed) || 0,
         location: u.location || '',
@@ -484,7 +572,7 @@ app.post('/api/user', async (req, res) => {
       sql: `UPDATE users SET name = ?, email = ?, education_level = ?, career_interest = ?${avatarUrl ? ', avatar_url = ?' : ''}${location !== undefined ? ', location = ?' : ''}${targetExam !== undefined ? ', target_exam = ?' : ''}${bio !== undefined ? ', bio = ?' : ''} WHERE id = ?`,
       args: [
         name,
-        email,
+        email.trim().toLowerCase(),
         educationLevel,
         careerInterest,
         ...(avatarUrl ? [avatarUrl] : []),
@@ -550,7 +638,7 @@ app.get('/api/user/export-data', async (req, res) => {
     const tasksRes = await client.execute({ sql: 'SELECT * FROM tasks WHERE user_id = ?', args: [userId] });
     const milestonesRes = await client.execute({ sql: 'SELECT * FROM milestones WHERE user_id = ?', args: [userId] });
     const remindersRes = await client.execute({ sql: 'SELECT * FROM reminders WHERE user_id = ?', args: [userId] });
-    const testsRes = await client.execute({ sql: 'SELECT * FROM assessments WHERE user_id = ?', args: [userId] });
+    const testsRes = await client.execute({ sql: 'SELECT * FROM quiz_attempts WHERE user_id = ?', args: [userId] });
 
     return res.json({
       exportTimestamp: new Date().toISOString(),
@@ -2122,9 +2210,10 @@ async function startServer() {
   });
 }
 
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
   startServer();
 }
 
+export { app };
 export default app;
 
