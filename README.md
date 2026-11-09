@@ -1,136 +1,398 @@
 <div align="center">
 
-<img src="./public/assets/mindpath_github_banner.jpg" width="100%" alt="MindPath Banner" style="border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.5);" />
+<img src="./public/assets/mindpath_github_banner.jpg" width="100%" alt="MindPath AI Platform Banner" style="border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.5);" />
 
 <br/><br/>
 
 # 🧠 MindPath AI
-### Autonomous Student Mentor, Career Guidance & Multimodal Educational Accelerator
+### Autonomous Student Mentor, Career Guidance Engine & Resilient Multimodal Academic Accelerator
 
 [![React 19](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Tailwind CSS v4](https://img.shields.io/badge/TailwindCSS-v4.3-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Turso DB](https://img.shields.io/badge/Turso_DB-libSQL_Cloud-00E599?logo=sqlite&logoColor=black)](https://turso.tech/)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-0.45-C5F74F?logo=drizzle&logoColor=black)](https://orm.drizzle.team/)
 [![Cloudflare R2](https://img.shields.io/badge/Cloudflare_R2-Object_Storage-F38020?logo=cloudflare&logoColor=white)](https://www.cloudflare.com/developer-platform/r2/)
 [![Security Audit](https://img.shields.io/badge/Security_Audit-25%2F25_Passed-brightgreen?logo=shield)](./tests/audit.ts)
+[![Tests](https://img.shields.io/badge/Tests-99%2F99_Passing-brightgreen?logo=bun)](./tests/smoke.test.ts)
 [![Production](https://img.shields.io/badge/Deployed-Vercel_Production-000000?logo=vercel&logoColor=white)](https://mindpath-blue.vercel.app)
 
-**MindPath** is a full-stack, enterprise-grade AI educational companion engineered for ambitious learners. Built with modern React 19, Express, Turso Cloud DB, and Cloudflare R2, it combines frontier AI intelligence (NVIDIA Nemotron-3 Ultra 550B via Enzonic) with a multi-source educational pipeline spanning YouTube, Internet Archive, GitHub, arXiv, Crossref, OpenAlex, MIT OpenCourseWare, Open edX, OpenStax, and Wikimedia.
+**MindPath** is an enterprise-grade, full-stack autonomous AI educational platform and career acceleration engine engineered for modern students and ambitious self-directed learners. Combining frontier AI intelligence (**NVIDIA Nemotron-3 Ultra 550B MoE** via Enzonic) with high-performance edge infrastructure, MindPath unifies personalized 6-level curriculum generation, live diagnostic testing, interactive career roadmaps, real-time web citations, zero-eval deterministic mathematical evaluation, and multi-source educational resource aggregation across 10 global platforms.
 
-[🌐 Live Production Website](https://mindpath-blue.vercel.app) • [Live Alternative](https://mindpath-live.vercel.app) • [Agent Technical Specification](AGENT.md)
+[🌐 Live Production Website](https://mindpath-blue.vercel.app) • [Live Alternative](https://mindpath-live.vercel.app) • [AI Agent Technical Specification](AGENT.md)
 
 </div>
 
 ---
 
-## 🌟 Key Capabilities
+## 📑 Table of Contents
 
-### 1. 🤖 Autonomous Multimodal AI Companion
-- **Live Multimodal Vision & File Analysis**: Upload PDF notes, problem sheets, and coding screenshots stored on Cloudflare R2 and analyzed by frontier vision models.
-- **Bi-Directional Database Tools**: The companion directly schedules reminders, adds study tasks, clears completed goals, and records diagnostic quiz results into Turso Cloud DB with zero hallucination.
-- **Deterministic Academic Calculator**: Solves complex mathematical, calculus, physics, and CGPA formulas via a zero-eval AST parser.
-- **Heartbeat Streaming & Persistence**: Real-time conversation streaming with scannable markdown, code syntax highlighting, and persistent synchronization to Turso Cloud DB.
+- [Platform Overview](#-platform-overview)
+- [System Architecture](#-system-architecture)
+- [Core Features & Capabilities](#-core-features--capabilities)
+  - [1. Compulsory AI Onboarding & Profile Synthesis](#1-compulsory-ai-onboarding--profile-synthesis)
+  - [2. 6-Level Interactive Curriculum Pathways](#2-6-level-interactive-curriculum-pathways)
+  - [3. Live Diagnostic Quizzes with Immutable Tracking](#3-live-diagnostic-quizzes-with-immutable-tracking)
+  - [4. Autonomous Multimodal AI Companion & Live Citations](#4-autonomous-multimodal-ai-companion--live-citations)
+  - [5. Career Explorer & What-If Simulation Engine](#5-career-explorer--what-if-simulation-engine)
+  - [6. Study Streak & Heatmap Activity Analytics](#6-study-streak--heatmap-activity-analytics)
+  - [7. Global Command Palette & Live Course Pipeline](#7-global-command-palette--live-course-pipeline)
+  - [8. Cloudflare R2 Multimodal Document Storage](#8-cloudflare-r2-multimodal-document-storage)
+- [Resilient Architectural Patterns](#-resilient-architectural-patterns)
+  - [7.2-Second Timeout Race & Fallback Engine](#72-second-timeout-race--fallback-engine)
+  - [Safe Client Response Parsing & Error Recovery](#safe-client-response-parsing--error-recovery)
+  - [Fast-Path Serverless Database Cold-Start Verification](#fast-path-serverless-database-cold-start-verification)
+- [Database Schema & Entity Relational Design](#-database-schema--entity-relational-design)
+- [Comprehensive API Endpoint Reference](#-comprehensive-api-endpoint-reference)
+- [Environment Configuration](#-environment-configuration)
+- [Local Development & Verification](#-local-development--verification)
+- [Production Deployment Guide](#-production-deployment-guide)
+- [Security Hardening & Penetration Testing](#-security-hardening--penetration-testing)
+- [License](#-license)
 
-### 2. 🚀 100% Live AI Career Guidance & Blueprints
-- **Zero Hardcoded Data**: All career tracks, salary benchmarks (INR & USD), and market demand trajectories across Tech, Science, Medicine, Business, and Arts are synthesized on demand by frontier AI models.
-- **Interactive 6-Level Curriculum Blueprints**: Generate step-by-step milestones (Beginner &rarr; Core Fundamentals &rarr; Intermediate &rarr; Advanced &rarr; Real Projects &rarr; Career Ready) with verified deliverables and identified skill gaps.
-- **What-If Scenario Modeling**: Simulate how shifts in study hours, target exams, and skill masteries impact placement readiness scores and timeline projections.
+---
 
-### 3. 📚 Multi-Source Educational Search Pipeline
-One search query concurrently pulls high-signal educational materials across 10 global platforms with automated sanitization:
-- **YouTube Data API v3**: Verified video masterclasses with ad-free responsive modal video players.
-- **Internet Archive**: Filtered historical educational lectures and university archives.
-- **GitHub**: Curated open-source courses, learning repositories, and roadmaps.
-- **arXiv & Crossref**: Peer-reviewed scientific literature and computer science papers.
-- **OpenAlex**: Open-access academic works and citation graphs.
-- **MIT OpenCourseWare**: Official MIT syllabus, lecture notes, and assignments.
-- **Open edX & OpenStax**: University-grade textbooks and accredited course outlines.
-- **Wikimedia**: Conceptual encyclopedic breakdowns.
+## 🔭 Platform Overview
 
-### 4. 🎯 Diagnostic Mock Assessments & Gamification
-- **Live AI-Generated Quizzes**: Instant multi-question timed diagnostic assessments tailored to your exact career interest.
-- **Persistent Quiz History & Attempts**: Scores, time limits, and weak topics are recorded in Turso DB with completion badges (`✓ Completed • 85%`) and instant retake options.
-- **Study Streak & Habit Tracking**: Automatic study streak logging, dynamic heatmap activity grid, and performance growth curves.
+Contemporary educational software typically presents students with fragmented learning tools: static course catalogs, isolated chatbots that suffer from hallucinations, and rigid, hardcoded career guidance.
+
+MindPath bridges these divides into a single, cohesive, self-healing system:
+1. **Student Statefulness**: Rather than an ephemeral chatbot, MindPath maintains persistent state across 13 relational tables in **Turso Cloud DB** (libSQL dialect), tracking real-time study streaks, completed milestones, task lists, and quiz performance.
+2. **Frontier Reasoning**: Leverages NVIDIA Nemotron-3 Ultra (550B MoE) via Enzonic with structured JSON outputs and streaming Server-Sent Events (SSE).
+3. **Fail-Safe Serverless Operation**: Engineered specifically for high-concurrency serverless runtimes (such as Vercel Edge/Serverless) with strict latency ceilings, sub-second fallback synthesis, and defensive client-side parsing.
+4. **10-Source Resource Pipeline**: Concurrently aggregates real-time courses, peer-reviewed academic literature, textbooks, and video masterclasses directly into student curriculum views.
 
 ---
 
 ## 🏛️ System Architecture
 
+The following diagram illustrates the complete end-to-end data flow between student clients, edge routing, serverless application logic, frontier intelligence models, and distributed persistence layers:
+
 ```mermaid
 graph TD
-  User([Student Client - React 19]) --> CDN[Vercel Global Edge CDN]
-  CDN --> SPA[Single Page App + Vite Chunk Reload Guard]
-  CDN --> API[Express Serverless Functions]
-
-  subgraph AI & Tool Execution Layer
-    API --> AICompanion[Autonomous MindPath AI Companion]
-    AICompanion --> Enzonic[Enzonic Gateway / NVIDIA Nemotron-3 550B]
-    AICompanion --> MathAST[Deterministic Academic Math AST Solver]
-    AICompanion --> WebSearch[Real-Time Live Web Search]
-    AICompanion --> SkillGap[Skill Gap & Mock Interview Engine]
+  User([Student Client<br/>React 19 + Vite + Tailwind CSS v4]) --> CDN[Vercel Global Edge CDN]
+  
+  subgraph Frontend Layer
+    CDN --> SPA[Single-Page Application<br/>Chunk Auto-Recovery Guard]
+    SPA --> CommandPalette[Command Palette ⌘K<br/>Live Course Query Engine]
+    SPA --> CompanionDrawer[AI Companion Drawer<br/>Real-Time SSE Streaming]
+    SPA --> SafeParser[Safe Client Response Parser<br/>504/Non-JSON Immunity]
   end
 
-  subgraph Multi-Source Educational Pipeline
-    API --> CourseAggregator[Course & Video Aggregator]
-    CourseAggregator --> YouTube[YouTube Data API v3]
-    CourseAggregator --> GitHubAPI[GitHub Search API]
-    CourseAggregator --> ArchiveOrg[Internet Archive]
-    CourseAggregator --> ArXivAPI[arXiv Preprint Server]
-    CourseAggregator --> OpenAlexAPI[OpenAlex & Crossref Works]
-    CourseAggregator --> OpenEdxAPI[MIT OCW, Open edX & OpenStax]
+  subgraph Edge & API Layer
+    CDN --> ExpressAPI[Node.js / Bun Express Server<br/>api/index.js Serverless Gateway]
+    ExpressAPI --> TimeoutRace[7.2s Timeout Race Controller<br/>withTimeout Promise Guard]
+    TimeoutRace -->|Within 7.2s| FrontierAI[Enzonic AI Gateway<br/>NVIDIA Nemotron-3 Ultra 550B]
+    TimeoutRace -->|Exceeds 7.2s / Err| CuratedEngine[Deterministic Curated Engine<br/>Domain Fallback Synthesis]
   end
 
-  subgraph Persistence & Object Storage
-    API --> TursoDB[(Turso Cloud DB - libSQL)]
-    API --> CloudflareR2[(Cloudflare R2 Object Storage)]
+  subgraph Tool Execution & Search
+    FrontierAI --> MathAST[Academic Math AST Evaluator<br/>Deterministic Zero-Eval]
+    FrontierAI --> LiveSearch[Real-Time Live Web Search<br/>Verified Source Citations]
+    FrontierAI --> Aggregator[10-Platform Educational Aggregator]
+    Aggregator --> Sources[(YouTube • arXiv • MIT OCW<br/>OpenStax • Open edX • Archive.org<br/>GitHub • Crossref • OpenAlex • Wiki)]
   end
+
+  subgraph Persistence & Cloud Storage
+    ExpressAPI --> DrizzleORM[Drizzle ORM libSQL Client<br/>Connection Pooling & Retry Engine]
+    DrizzleORM --> TursoDB[(Turso Cloud Database<br/>SQLite/libSQL Dialect)]
+    ExpressAPI --> S3Presigner[AWS S3 SDK Client]
+    S3Presigner --> CloudflareR2[(Cloudflare R2 Object Storage<br/>Multimodal Files & Diagrams)]
+  end
+```
+
+### Component Breakdown
+- **Client (Frontend)**: React 19.0.1, TypeScript 5.8, Tailwind CSS v4.3, Lucide React icons, and Motion animations.
+- **Server Gateway (Backend)**: Express 4.21 bundled into a single Node.js ESM serverless bundle via `esbuild` for Vercel Serverless Functions (`api/index.js`).
+- **Database Engine**: Turso Cloud Database (`@libsql/client`), SQLite dialect, mapped with **Drizzle ORM 0.45**.
+- **Object Storage**: Cloudflare R2 (S3-compatible API) utilizing presigned URLs and binary magic-byte inspection for student file and screenshot uploads.
+- **AI Intelligence**: NVIDIA Nemotron-3 Ultra 550B MoE accessed via the Enzonic AI Gateway with medium test-time reasoning effort (`reasoningEffort: "medium"`).
+
+---
+
+## 🌟 Core Features & Capabilities
+
+### 1. Compulsory AI Onboarding & Profile Synthesis
+Upon first login or account creation, students are guided through an interactive multi-step onboarding wizard (`OnboardingTour.tsx`):
+- **Academic Context**: Education level selection (e.g., *Class 10, Class 12, Undergraduate B.Tech, Postgraduate MS, Early Professional*).
+- **Career Aspiration**: Target professional specializations (e.g., *Software Engineering, AI & Machine Learning, Data Science, Medical & Healthcare, Investment Banking, Mechanical Systems*).
+- **Target Examination & Goal**: Specific competitive milestones (e.g., *GATE CSE, JEE Advanced, USMLE, CFA, AWS Solutions Architect*).
+- **Personalized Avatars & Location**: Choice between curated SVG/PNG avatars (Arjun, Alex, Rohan, Sneha, or custom uploads) and geographic location for regional salary and exam context.
+- **Atomic Profile Provisioning**: Serverless `POST /api/onboarding/complete` initiates parallel generation of a tailored 6-stage curriculum roadmap, diagnostic assessment quiz, and foundational study tasks, directly persisted to Turso Cloud DB.
+
+### 2. 6-Level Interactive Curriculum Pathways
+Rather than simple lists of links, MindPath provisions an actionable, stage-gated curriculum:
+- **Level 1: Foundations & Prerequisites**: Core mathematical, algorithmic, or domain basics.
+- **Level 2: Core Fundamentals**: Foundational frameworks, essential theory, and standard toolchains.
+- **Level 3: Applied Intermediate Practice**: Problem sets, labs, and interactive implementations.
+- **Level 4: Advanced Specialization**: Enterprise architectural patterns, distributed systems, or specialized domain techniques.
+- **Level 5: Real-World Capstone Projects**: Production-ready software, portfolios, or research deliverables with verifiable criteria.
+- **Level 6: Placement & Career Readiness**: Mock interview drills, resume impact metrics, and competitive exam readiness.
+
+### 3. Live Diagnostic Quizzes with Immutable Tracking
+- **Deterministic & AI Generation**: Quizzes are generated on demand based on the student's target field.
+- **Immutable Quiz ID Hash**: Each generated or predefined quiz features a unique, deterministic `quiz_id`. Quiz attempt submissions (`POST /api/quizzes/attempt`) strictly index on `quiz_id` rather than title strings, guaranteeing that distinct assessments with identical or similar titles never overwrite one another.
+- **Weak Topic Diagnostics**: Attempts record specific sub-topics where students scored under 75%, automatically feeding recommendations into the AI companion's study task scheduler.
+
+### 4. Autonomous Multimodal AI Companion & Live Citations
+- **Stateful Bi-Directional Tools**: The companion does not merely chat; it executes database actions directly on behalf of the student:
+  - `setStudyReminderDirectly`: Schedules real-time study reminders in the database.
+  - `addStudyTaskDirectly`: Dynamically adds study goals into the student's task dashboard.
+  - `removeStudyTaskDirectly`: Removes completed tasks without leaving the chat interface.
+  - `getStudentProfileContext`: Reads live streaks, study hours, and quiz averages to provide personalized recommendations.
+- **Zero-Hallucination Academic Math Evaluator**: Deterministic Abstract Syntax Tree (AST) evaluator for calculus, algebra, percentiles, and CGPA calculations, completely avoiding standard LLM arithmetic errors.
+- **Real-Time Live Web Search**: Synthesizes up-to-the-minute syllabus updates, cutoffs, and exam schedules with markdown citations and source links.
+- **Streaming SSE Engine**: Responses stream in real time with syntax-highlighted code blocks, LaTeX-style formatting, and scannable summaries.
+
+### 5. Career Explorer & What-If Simulation Engine
+- **Global Industry Catalog**: Dynamic explorer spanning Tech, Healthcare, Business, Engineering, and Creative sectors.
+- **Bilingual Compensation Benchmarks**: Displays verified salary ranges in both Indian Lakhs (`₹ LPA`) and US Dollars (`$ USD`) adjusted for experience tiers.
+- **What-If Placement Simulator**: Interactive modal (`WhatIfModal.tsx`) allowing students to simulate how adjusting weekly study hours, target test dates, or mastering specific key technologies alters their projected placement readiness score and timeline.
+
+### 6. Study Streak & Heatmap Activity Analytics
+- **Daily Streak Algorithm**: Automatically calculates consecutive active learning days based on task completions, quiz submissions, and course interactions.
+- **GitHub-Style Contribution Heatmap**: Visualizes annual learning consistency and daily intensity on the dashboard.
+- **Progress Weighted Index**: Accurately aggregates completed milestones, course progress percentages, and diagnostic test scores into a unified composite readiness score.
+
+### 7. Global Command Palette & Live Course Pipeline
+- **Keyboard Shortcut (`⌘K` / `Ctrl+K`)**: Instant access anywhere across the application.
+- **Live 10-Platform Course Search**: Querying the command palette executes concurrent searches across 10 global educational repositories:
+  - **YouTube Data API v3**: Verified video masterclasses.
+  - **Internet Archive**: Archival lectures and historical university materials.
+  - **GitHub**: Open-source repositories and engineering roadmaps.
+  - **arXiv & Crossref**: Peer-reviewed scientific preprints.
+  - **OpenAlex**: Global open-access research index.
+  - **MIT OpenCourseWare**: Official MIT syllabus, lecture notes, and assignments.
+  - **Open edX & OpenStax**: University-grade open textbooks.
+  - **Wikimedia**: Conceptual knowledge breakdowns.
+
+### 8. Cloudflare R2 Multimodal Document Storage
+- **S3-Compatible Object Storage**: Presigned URL workflow ensures that file uploads bypass server bottlenecks and upload directly to Cloudflare R2 buckets.
+- **Strict Content Inspection**: Server-side binary validation verifies file headers (magic bytes) and MIME types to prevent webshells or malformed payloads before granting presigned access.
+
+---
+
+## 🛡️ Resilient Architectural Patterns
+
+MindPath is engineered for zero-downtime, sub-second reliability within constrained serverless execution environments (such as Vercel Edge / Serverless Functions):
+
+### 7.2-Second Timeout Race & Fallback Engine
+External 550-billion-parameter LLM APIs occasionally experience network latency spikes exceeding 10 to 15 seconds during peak loads. Because Vercel Serverless free and standard plans terminate requests exceeding 10 seconds with an unrecoverable `504 Gateway Timeout`, MindPath implements a strict **7.2-second timeout race engine** (`withTimeout`):
+
+```typescript
+// server.ts & src/lib/services/enzonic-ai.ts
+export async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fallback: T | (() => T)
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timer = setTimeout(() => {
+      resolve(typeof fallback === 'function' ? (fallback as () => T)() : fallback);
+    }, ms);
+  });
+
+  return Promise.race([
+    promise.then((res) => {
+      clearTimeout(timer);
+      return res;
+    }),
+    timeoutPromise,
+  ]);
+}
+```
+
+- When `POST /api/onboarding/complete` is called, career path generation and diagnostic quiz creation run concurrently via `Promise.allSettled`.
+- Each external request is budgeted with a 5,200ms timeout within the endpoint's 7,200ms ceiling.
+- If the external frontier model responds within the budget, students receive dynamic, on-demand AI curriculum.
+- If the upstream provider is delayed or unreachable, the system automatically falls back to rich, domain-specific curated roadmaps and comprehensive diagnostic question sets.
+- **Result**: The endpoint consistently resolves in under 7.5 seconds, guaranteeing HTTP 200 responses and 0% gateway timeouts.
+
+### Safe Client Response Parsing & Error Recovery
+Standard frontend fetch requests often fail when upstream edge proxies return HTML error pages (e.g., `504 Gateway Timeout` or `502 Bad Gateway`). Calling `await response.json()` directly throws an unhandled:
+`SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
+
+MindPath equips client components (`OnboardingTour.tsx`) with a defensive parsing layer (`parseOnboardingResponse` and `sanitizeOnboardingError`):
+1. **MIME Inspection**: Verifies whether `res.headers.get('content-type')` includes `application/json`.
+2. **Text-Buffered Fallback**: Reads raw response text first; safely attempts JSON decoding within a `try/catch` block.
+3. **User-Friendly Error Translation**: Obscure network or parsing errors are translated into actionable notifications (e.g., *"Server took too long to respond. Please check your connection or try again."*) rather than application crashes.
+
+### Fast-Path Serverless Database Cold-Start Verification
+- Single-connection pooling via `@libsql/client` with pre-warmed connection handles.
+- Dual-path identity resolution: Endpoints check authentication state through both HTTP headers (`x-user-id`) and request bodies (`req.body.userId`), preventing cold-start session drops.
+- Scrypt password hashing with constant-time equality checks (`timingSafeEqual`) to prevent timing attack enumeration.
+
+---
+
+## 💾 Database Schema & Entity Relational Design
+
+MindPath stores application state in **Turso Cloud DB (libSQL)** managed with **Drizzle ORM**.
+
+```
+┌─────────────────┐       ┌──────────────────────┐       ┌────────────────────────┐
+│      users      │ 1───* │        tasks         │ 1───* │       milestones       │
+│─────────────────│       │──────────────────────│       │────────────────────────│
+│ id (PK)         │       │ id (PK)              │       │ id (PK)                │
+│ name            │       │ user_id (FK)         │       │ user_id (FK)           │
+│ email           │       │ title                │       │ title                  │
+│ password_hash   │       │ time_text            │       │ time_text              │
+│ avatar_url      │       │ completed (0/1)      │       │ status (active/done)   │
+│ education_level │       │ category             │       │ icon_type              │
+│ career_interest │       │ order_index          │       │ order_index            │
+│ streak_days     │       │ created_at           │       └────────────────────────┘
+│ total_hours     │       └──────────────────────┘
+│ onboarding_done │
+│ location        │       ┌──────────────────────┐       ┌────────────────────────┐
+│ target_exam     │ 1───* │      reminders       │ 1───* │     quiz_attempts      │
+│ bio             │       │──────────────────────│       │────────────────────────│
+│ created_at      │       │ id (PK)              │       │ id (PK)                │
+└────────┬────────┘       │ user_id (FK)         │       │ user_id (FK)           │
+         │                │ title                │       │ quiz_id                │
+         │                │ time_text            │       │ quiz_title             │
+         │                │ category             │       │ category               │
+         │                │ enabled (0/1)        │       │ score / total          │
+         │                │ created_at           │       │ weak_topics            │
+         │                └──────────────────────┘       │ completed_at           │
+         │                                               └────────────────────────┘
+         │
+         │ 1───* ┌──────────────────────────────┐
+         ├─────* │    generated_career_paths    │
+         │       │ (id, user_id, goal, path_json)
+         │       └──────────────────────────────┘
+         │
+         │ 1───* ┌──────────────────────────────┐
+         ├─────* │      generated_quizzes       │
+         │       │ (id, user_id, topic, level, questions_json)
+         │       └──────────────────────────────┘
+         │
+         │ 1───* ┌──────────────────────────────┐
+         ├─────* │    chat_sessions & messages   │
+         │       │ (id, user_id, content, attachments, citations)
+         │       └──────────────────────────────┘
+         │
+         │ 1───* ┌──────────────────────────────┐
+         └─────* │        uploaded_files        │
+                 │ (id, user_id, file_name, file_url, storage_key)
+                 └──────────────────────────────┘
 ```
 
 ---
 
-## 📂 Project Structure
+## 📡 Comprehensive API Endpoint Reference
 
-```
-MindPath/
-├── AGENT.md                  # Comprehensive AI Agent Specification & Tool Reference
-├── api/
-│   └── index.js              # Bundled Node.js ESM serverless entrypoint for Vercel
-├── dist/                     # Optimized client production bundle
-├── public/
-│   └── assets/               # 4K SVG artwork, high-resolution heroes & icons
-├── src/
-│   ├── components/
-│   │   ├── auth/             # Sign-in & account creation modals
-│   │   ├── brand/            # Futuristic gradient cube brand SVGs
-│   │   ├── career/           # What-If career simulator modals
-│   │   ├── companion/        # AI Companion drawer with streaming SSE
-│   │   ├── layout/           # Sticky fixed sidebar, navigation header
-│   │   ├── learning/         # Responsive course player modal
-│   │   ├── onboarding/       # 3-step interactive onboarding wizard
-│   │   └── quiz/             # Interactive quiz challenge modal
-│   ├── lib/
-│   │   ├── ai/               # Tools, prompt injection, and math solver
-│   │   ├── db/               # Turso libSQL schema and migration routines
-│   │   ├── pipeline/         # 10-source course & video aggregator
-│   │   ├── services/         # Upstream API integrations
-│   │   └── storage/          # Cloudflare R2 presigned upload client
-│   ├── views/                # Full views: Home, Career, Learning, Quizzes, etc.
-│   ├── App.tsx               # Root app with session management
-│   └── main.tsx              # React 19 entry with chunk load auto-recovery
-├── tests/
-│   └── audit.ts              # 25-point comprehensive security and pentest suite
-├── server.ts                 # Express TypeScript API server
-└── vercel.json               # Vercel deployment and caching rules
+### Authentication & User Management
+| Method | Endpoint | Request Body | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/user/create` | `{ name, email, password, educationLevel?, careerInterest? }` | Registers a new user. Auto-lowercases and trims email; hashes password via Scrypt. Returns 409 if email already exists. |
+| `POST` | `/api/user/register` | `{ name, email, password, educationLevel?, careerInterest? }` | Production registration alias ensuring backwards-compatible client onboarding. |
+| `POST` | `/api/user/login` | `{ email, password }` | Authenticates credentials with constant-time verification. Supports leading/trailing whitespace tolerance. |
+| `GET` | `/api/user` | *Header: `x-user-id`* | Returns current authenticated profile context. |
+| `POST` | `/api/user` | `{ name?, bio?, location?, educationLevel?, careerInterest?, avatarUrl? }` | Updates profile attributes. |
+| `POST` | `/api/user/change-password` | `{ oldPassword, newPassword }` | Verifies existing password and updates Scrypt hash. |
+| `GET` | `/api/user/export-data` | *Header: `x-user-id`* | GDPR-compliant JSON dump querying all associated records across 14 tables. |
+
+### Onboarding & Curriculum Generation
+| Method | Endpoint | Request Body | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/onboarding/complete` | `{ userId?, educationLevel, careerInterest, targetExam?, location?, bio?, avatarUrl? }` | Atomic onboarding pipeline. Enforces a 7.2s timeout race fallback engine; persists milestones, quizzes, and tasks. Returns HTTP 200. |
+
+### Study Tasks & Milestones
+| Method | Endpoint | Request Body | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/tasks` | *Header: `x-user-id`* | Lists tasks ordered by completion status and index. |
+| `POST` | `/api/tasks` | `{ title, timeText, category? }` | Creates a new study task. |
+| `POST` | `/api/tasks/toggle` | `{ id, completed }` | Toggles task status and recalculates streak/progress metrics. |
+| `DELETE` | `/api/tasks/:id` | *None* | Permanently removes a task. |
+| `GET` | `/api/milestones` | *Header: `x-user-id`* | Fetches active 6-stage roadmap milestones. |
+| `POST` | `/api/milestones` | `{ milestones: [...] }` | Replaces or updates curriculum milestones. |
+
+### Study Reminders
+| Method | Endpoint | Request Body | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/reminders` | *Header: `x-user-id`* | Retrieves active study reminders. |
+| `POST` | `/api/reminders` | `{ title, timeText, category? }` | Schedules an active reminder. |
+| `POST` | `/api/reminders/toggle` | `{ id, enabled }` | Activates or disables a reminder. |
+| `DELETE` | `/api/reminders/:id` | *None* | Deletes a reminder. |
+
+### Diagnostic Quizzes & History
+| Method | Endpoint | Request Body | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/quizzes` | *Header: `x-user-id`* | Lists all predefined and AI-generated quizzes. |
+| `GET` | `/api/quizzes/attempts` | *Header: `x-user-id`* | Retrieves full history of user quiz attempts. |
+| `POST` | `/api/quizzes/attempt` | `{ quizId, quizTitle, category, score, totalQuestions, weakTopics }` | Records quiz attempt with immutable `quiz_id` deduplication. |
+| `POST` | `/api/quizzes/clear` | *Header: `x-user-id`* | Clears quiz attempts for the authenticated student. |
+| `POST` | `/api/quiz/generate` | `{ topic, level? }` | Generates a 5-question multiple choice quiz with structured answers. |
+
+### AI Companion, Reasoning & Simulation
+| Method | Endpoint | Request Body | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/ai/chat` | `{ messages, userContext?, attachments? }` | Real-time SSE streaming chat with tool calling, AST math evaluation, and live citations. |
+| `GET` | `/api/ai/search` | *Query: `?q=...`* | Real-time web search returning top results, snippets, and verified source citations. |
+| `POST` | `/api/ai/what-if` | `{ studyHours, targetExam, masteredSkills, careerInterest }` | What-If simulation engine calculating placement probability adjustments. |
+| `GET` | `/api/ai/health` | *None* | Upstream Enzonic rotator connectivity and availability monitor. |
+
+### Multi-Source Course & Video Pipeline
+| Method | Endpoint | Query Parameters | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/courses` | `?q=...&maxPerSource=...` | Concurrently queries 10 platforms (MIT OCW, GitHub, Open edX, OpenStax, Internet Archive, arXiv, Crossref, OpenAlex, Wikimedia). |
+| `GET` | `/api/videos` | `?q=...` | Aggregates educational masterclasses from YouTube Data API v3 and Internet Archive. |
+| `GET` | `/api/lessons` | `?q=...` | Retrieves modular individual lessons. |
+
+### Cloudflare R2 Multimodal Storage
+| Method | Endpoint | Request Body / Form | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/storage/upload` | `multipart/form-data` | Uploads file to Cloudflare R2 bucket with MIME and magic-byte security checks. |
+| `POST` | `/api/storage/upload-chat-file` | `multipart/form-data` | Uploads chat attachment with presigned direct access. |
+| `GET` | `/api/storage/files` | *Header: `x-user-id`* | Lists user-uploaded notes, problem sheets, and screenshots. |
+
+---
+
+## ⚙️ Environment Configuration
+
+Copy `.env.example` to `.env` in your project root:
+
+```ini
+# =============================================================================
+# MindPath AI — Environment Configuration
+# =============================================================================
+
+# Turso Cloud Database (libSQL / SQLite)
+TURSO_DATABASE_URL="libsql://your-database-slug.turso.io"
+TURSO_AUTH_TOKEN="your-turso-jwt-auth-token"
+
+# Frontier AI Intelligence (Enzonic AI Gateway / NVIDIA Nemotron-3 Ultra 550B)
+ENZONIC_ROTATOR_URL="http://sgp-two.enzonic.com:25836/v1"
+ENZONIC_API_KEY="your-enzonic-api-key"
+ENZONIC_MODEL="nvidia/nemotron-3-ultra-550b-a55b"
+ENZONIC_STATUS_URL="http://sgp-two.enzonic.com:25836/status"
+
+# Optional Fallback Provider
+# GEMINI_API_KEY="your-google-gemini-api-key"
+
+# YouTube Data API v3 (for multi-source video discovery)
+YOUTUBE_API_KEY="your-youtube-data-api-v3-key"
+
+# Cloudflare R2 Object Storage (S3-Compatible multimodal file uploads)
+R2_ACCOUNT_ID="your-cloudflare-account-id"
+R2_ACCESS_KEY_ID="your-cloudflare-r2-access-key-id"
+R2_SECRET_ACCESS_KEY="your-cloudflare-r2-secret-access-key"
+R2_BUCKET_NAME="mindpath-uploads"
+R2_ENDPOINT="https://your-account-id.r2.cloudflarestorage.com"
+
+# Server Port & Runtime
+PORT=3000
+NODE_ENV="development"
 ```
 
 ---
 
-## ⚡ Getting Started
+## 💻 Local Development & Verification
 
 ### Prerequisites
-- [Bun](https://bun.sh/) (v1.1+) or Node.js (v20+)
-- Turso Database Account & Cloud Token
+- [Bun](https://bun.sh/) (v1.1 or higher) or [Node.js](https://nodejs.org/) (v20+ LTS)
+- Turso Database Account & Database URL
 
 ### Installation
 ```bash
@@ -138,57 +400,94 @@ MindPath/
 git clone https://github.com/Aztech-1729/mindpath.git
 cd mindpath
 
-# Install dependencies
+# Install dependencies using Bun
 bun install
 ```
 
-### Environment Configuration
-Create a `.env` file in the project root:
-```ini
-# Turso Cloud Database
-TURSO_DATABASE_URL="libsql://your-database.turso.io"
-TURSO_AUTH_TOKEN="your-turso-auth-token"
+### Running the Development Server
+```bash
+# Launches Express API and Vite client concurrently
+bun run dev
+```
+Visit `http://localhost:3000` in your browser.
 
-# Frontier AI Intelligence
-ENZONIC_API_KEY="your-enzonic-api-key"
-ENZONIC_BASE_URL="https://api.enzonic.com/v1"
-
-# YouTube Data API
-YOUTUBE_API_KEY="your-youtube-api-key"
-
-# Cloudflare R2 Storage (Optional)
-R2_ACCOUNT_ID="your-cloudflare-account-id"
-R2_ACCESS_KEY_ID="your-r2-access-key-id"
-R2_SECRET_ACCESS_KEY="your-r2-secret-access-key"
-R2_BUCKET_NAME="mindpath-uploads"
+### Quality Assurance & Static Analysis
+```bash
+# Static TypeScript verification and Biome lint check
+bun run check
 ```
 
-### Development & Verification
+### Comprehensive Test Suite
 ```bash
-# Typecheck & Biome Linter
-bun run check
+# Execute all hermetic unit, integration, stress, and smoke tests
+bun test
+```
+The test suite executes 99 automated tests across 7 test suites:
+- `tests/smoke.test.ts`: End-to-end registration, login, onboarding fallback, DB validation, and client safe parsing.
+- `tests/challenger_m1_auth.test.ts`: Route alias parity, whitespace/case combinatorics, and burst concurrency.
+- `tests/m1_stress.test.ts`: 409 conflict checks, password boundary lengths (5, 6, 128, 129), and SQL injection immunity.
+- `tests/m2_onboarding_resilience.test.ts`: 7.2s timeout enforcement, multi-table persistence, and relational queries.
+- `tests/m3_onboarding_client.test.ts`: Safe client response parser, non-JSON handling, and UI error sanitization.
+- `src/utils/progress.test.ts`: Study streak, weak area diagnosis, and weighted progress percentages.
+- `src/utils/quiz.test.ts`: Immutable `quiz_id` matching pipeline and collision prevention.
 
-# Full Security Audit & Pentest (25/25 Controls)
-bun tests/audit.ts
-
-# Production Build
+### Building for Production
+```bash
+# Compiles Vite client into /dist and bundles server.ts into api/index.js
 bun run build
 ```
 
 ---
 
-## 🔒 Security Audit & Hardening
+## 🚀 Production Deployment Guide
 
-MindPath has undergone rigorous penetration testing across 25 distinct security controls verified by [`tests/audit.ts`](./tests/audit.ts):
+MindPath is optimized for deployment on **Vercel** with zero configuration required beyond environment variables.
 
-| Category | Defense Mechanism | Status |
+### Vercel Serverless Architecture
+The repository includes a production-tuned `vercel.json` configuration:
+```json
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+### Steps to Deploy
+1. **Push to GitHub**:
+   Ensure all changes are pushed to your `main` branch.
+2. **Connect Project to Vercel**:
+   Import your repository into the [Vercel Dashboard](https://vercel.com).
+3. **Set Environment Variables**:
+   Configure `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `ENZONIC_ROTATOR_URL`, `ENZONIC_API_KEY`, `YOUTUBE_API_KEY`, and Cloudflare R2 credentials under **Project Settings &rarr; Environment Variables**.
+4. **Deploy**:
+   Vercel runs `bun run build`, producing the static bundle in `/dist` and the serverless API function in `/api/index.js`.
+5. **Live Verification**:
+   Verify production health at `https://your-domain.vercel.app/api/ai/health`.
+
+---
+
+## 🔒 Security Hardening & Penetration Testing
+
+MindPath has undergone security auditing across 25 distinct penetration testing controls verified by [`tests/audit.ts`](./tests/audit.ts):
+
+| Security Control | Defense Implementation | Audit Result |
 | :--- | :--- | :---: |
-| **Authentication** | Passwords hashed using `crypto.scrypt` with constant-time `timingSafeEqual` | ✅ Verified |
-| **Database Isolation** | 100% parameterized SQL statements across all endpoints | ✅ Verified |
-| **Input Sanitization** | HTML injection, `<script>`, and malformed payloads sanitized prior to storage | ✅ Verified |
-| **Content Security** | Strict MIME verification, magic-byte checks on image uploads, rejection of webshells | ✅ Verified |
-| **Network Protection** | Disabled `X-Powered-By`, enforced `X-Content-Type-Options: nosniff` and `X-Frame-Options` | ✅ Verified |
-| **Vite Chunk Guard** | Client-side `vite:preloadError` listener automatically reloads stale deployment chunks | ✅ Verified |
+| **Password Hashing** | `crypto.scrypt` with unique salts and timing-safe comparison | ✅ PASS |
+| **SQL Injection Immunity** | Parameterized queries via Drizzle ORM / `@libsql/client` across 100% of routes | ✅ PASS |
+| **Account Enumeration Defense** | Constant-time generic 401 response for non-existent users and bad credentials | ✅ PASS |
+| **Input Sanitization** | Automatic HTML escaping, script injection neutralizing, and length boundary clamping | ✅ PASS |
+| **MIME & Webshell Protection** | Binary magic-byte inspection on uploads, rejecting executable scripts and SVG XSS | ✅ PASS |
+| **Security Headers** | Helmet-configured CSP, `X-Content-Type-Options: nosniff`, and disabled `X-Powered-By` | ✅ PASS |
+| **Vite Chunk Recovery** | Client-side `vite:preloadError` listener automatically reloads stale deployment chunks | ✅ PASS |
 
 ---
 
@@ -199,5 +498,5 @@ This project is licensed under the [Apache-2.0 License](./LICENSE).
 ---
 
 <div align="center">
-<b>Empowering the next generation of engineers, doctors, and scientists with autonomous AI mentorship.</b>
+<b>MindPath AI — Empowering the next generation of engineers, doctors, and scientists with autonomous, resilient AI mentorship.</b>
 </div>

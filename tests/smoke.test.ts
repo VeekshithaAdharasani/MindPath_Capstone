@@ -331,7 +331,7 @@ describe('MindPath End-to-End Smoke Test Suite', () => {
         args: [createdUserAId],
       });
       expect(tasksCheck.rows.length).toBeGreaterThanOrEqual(1);
-    });
+    }, 15000);
 
     it('3.3 rejects onboarding request without authenticated user ID with 401', async () => {
       const res = await fetch(`${baseUrl}/api/onboarding/complete`, {

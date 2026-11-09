@@ -3256,6 +3256,18 @@ async function resolveUserId(req) {
   }
   return "default-user";
 }
+async function safeExecute(stmt, maxRetries = 3) {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      return await client.execute(stmt);
+    } catch (err) {
+      attempt++;
+      if (attempt >= maxRetries) throw err;
+      await new Promise((r) => setTimeout(r, 80 * attempt));
+    }
+  }
+}
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
   const cleanPassword = typeof password === "string" ? password.trim() : "";
@@ -3445,17 +3457,17 @@ app.post("/api/onboarding/complete", async (req, res) => {
     });
     const updatedUser = userRes.rows[0];
     const timeoutPromise = new Promise(
-      (resolve) => setTimeout(() => resolve("timeout"), 5500)
+      (resolve) => setTimeout(() => resolve("timeout"), 4500)
     );
     const parallelGenPromise = Promise.allSettled([
-      generateCareerPath(cleanCareer, 5200),
-      generateQuiz(cleanCareer, "intermediate", 5, 5200)
+      generateCareerPath(cleanCareer, 4200),
+      generateQuiz(cleanCareer, "intermediate", 5, 4200)
     ]);
     const generationResult = await Promise.race([parallelGenPromise, timeoutPromise]);
     let plan;
     let quiz;
     if (generationResult === "timeout") {
-      console.warn("Onboarding AI generation timed out at 5.5s threshold; using curated fallbacks");
+      console.warn("Onboarding AI generation timed out at 4.5s threshold; using curated fallbacks");
       plan = getCuratedCareerPath(cleanCareer);
       quiz = getCuratedQuiz(cleanCareer, "intermediate", 5);
     } else {
@@ -3479,7 +3491,7 @@ app.post("/api/onboarding/complete", async (req, res) => {
     }
     const dbOperations = [];
     dbOperations.push(
-      client.execute({
+      safeExecute({
         sql: `INSERT INTO generated_career_paths (id, user_id, goal, path_json, created_at)
               VALUES (?, ?, ?, ?, ?)`,
         args: [
@@ -3495,7 +3507,7 @@ app.post("/api/onboarding/complete", async (req, res) => {
     for (let i = 0; i < milestonesToSave.length; i++) {
       const m = milestonesToSave[i];
       dbOperations.push(
-        client.execute({
+        safeExecute({
           sql: `INSERT INTO milestones (id, user_id, title, time_text, status, icon_type, order_index)
                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
           args: [
@@ -3511,7 +3523,7 @@ app.post("/api/onboarding/complete", async (req, res) => {
       );
     }
     dbOperations.push(
-      client.execute({
+      safeExecute({
         sql: `INSERT INTO generated_quizzes (id, user_id, topic, level, title, questions_json, category, created_at)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
@@ -3527,7 +3539,7 @@ app.post("/api/onboarding/complete", async (req, res) => {
       }).catch((qErr) => console.warn("Initial quiz persistence notice:", qErr))
     );
     dbOperations.push(
-      client.execute({
+      safeExecute({
         sql: `INSERT INTO tasks (id, user_id, title, time_text, category, completed, order_index, created_at)
               VALUES (?, ?, ?, ?, ?, 0, 0, ?)`,
         args: [
@@ -3541,7 +3553,7 @@ app.post("/api/onboarding/complete", async (req, res) => {
       }).catch((tErr) => console.warn("Initial task 1 notice:", tErr))
     );
     dbOperations.push(
-      client.execute({
+      safeExecute({
         sql: `INSERT INTO tasks (id, user_id, title, time_text, category, completed, order_index, created_at)
               VALUES (?, ?, ?, ?, ?, 0, 1, ?)`,
         args: [

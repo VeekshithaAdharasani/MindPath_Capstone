@@ -1,15 +1,65 @@
+# Dependencies
 node_modules/
-build/
+/.pnp
+.pnp.js
+
+# Production Builds & Output
 dist/
-coverage/
+build/
+out/
+.turbo/
+
+# Environment Variables & Local Overrides
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env.local
+
+# Operating System Files
 .DS_Store
+Thumbs.db
+Desktop.ini
+*.directory
+
+# IDEs and Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Testing & Coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Logs & Debug Output
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun.report*
+
+# Local SQLite / LibSQL Databases & State
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
 local.db*
+
+# Temporary Files, Subagent Traces & Scratch Artifacts
 tmp/
 temp/
-
-.vercel
+*.tmp
+*.scratch
 .agents/
+.vercel/
+.cache/
